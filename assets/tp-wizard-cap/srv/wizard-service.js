@@ -40,17 +40,24 @@ module.exports = (srv) => {
 
   // ── Submit Answer ─────────────────────────────────────────────────────────
   srv.on('submitAnswer', async (req) => {
-    const { sessionId, questionId, answer } = req.data;
+    const { sessionId, questionId, answer, source } = req.data;
+    const resolvedSource = source || 'katrin-confirmed';
     const session = SESSION_STORE.get(sessionId);
     if (!session) return req.error(404, `Session ${sessionId} nicht gefunden`);
     if (session.status !== 'open') return req.error(409, 'Session ist bereits abgeschlossen');
 
-    // Update or add answer
+    // Update or add answer, preserving agentProposal for overrides
     const existingIdx = session.answers.findIndex(a => a.questionId === questionId);
     if (existingIdx >= 0) {
-      session.answers[existingIdx].answer = answer;
+      const prev = session.answers[existingIdx];
+      session.answers[existingIdx] = {
+        questionId,
+        answer,
+        source: resolvedSource,
+        agentProposal: prev.agentProposal ?? (prev.source === 'agent-default' ? prev.answer : null)
+      };
     } else {
-      session.answers.push({ questionId, answer });
+      session.answers.push({ questionId, answer, source: resolvedSource, agentProposal: null });
     }
 
     // Derive TP preview with current answers

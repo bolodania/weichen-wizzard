@@ -20,7 +20,8 @@ service WizardService @(path: '/wizard') {
   action submitAnswer(
     sessionId    : String,
     questionId   : String,
-    answer       : String
+    answer       : String,
+    source       : String   // auto|agent-default|katrin-confirmed|katrin-corrected
   ) returns {
     sessionId    : String;
     nextQuestion : String; // JSON

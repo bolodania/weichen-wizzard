@@ -35,8 +35,10 @@ entity WizardSession {
   switchNumber     : String(10);   // Weichennummer z.B. "2006"
   basicForm        : String(20);   // Grundbauform
   answersJson      : String(4000); // JSON-Snapshot aller Antworten
-  status           : String(20);   // "open", "confirmed", "created"
+  status           : String(20);   // open|submitted|editing|approved|created|failed
   derivedTPCount   : Integer;
   createdAt        : DateTime;
+  submittedAt      : DateTime;     // set when Katrin/Agent calls submitSession
+  approvedAt       : DateTime;     // set when Thomas calls approveSession
   creationResult   : String(500);  // JSON summary from SAP
 }
