@@ -22,15 +22,29 @@ export function useAgentSession() {
       const sid = sess.sessionId ?? sess.value?.sessionId;
       setSessionId(sid);
 
+      // Pre-answer the identity questions so getNextQuestion skips them
+      await axios.post(`${BASE}/submitAnswer`, { sessionId: sid, questionId: 'ds100',        answer: ds100,       source: 'katrin-confirmed' });
+      await axios.post(`${BASE}/submitAnswer`, { sessionId: sid, questionId: 'switchNumber', answer: switchNumber, source: 'katrin-confirmed' });
+      await axios.post(`${BASE}/submitAnswer`, { sessionId: sid, questionId: 'basicForm',    answer: basicForm,   source: 'katrin-confirmed' });
+
       const { data: defaultsResp } = await axios.get(`${BASE}/getSmartDefaults(basicForm='${basicForm}')`);
       const defaultsRaw = defaultsResp.value ?? defaultsResp;
       const defaults = typeof defaultsRaw === 'string' ? JSON.parse(defaultsRaw) : defaultsRaw;
 
       const highConf = defaults.filter(d => d.confidence === 'high');
+      let lastData;
       for (const d of highConf) {
-        await axios.post(`${BASE}/submitAnswer`, {
+        const { data } = await axios.post(`${BASE}/submitAnswer`, {
           sessionId: sid, questionId: d.questionId, answer: d.defaultAnswer, source: 'agent-default'
         });
+        lastData = data;
+      }
+
+      // Update TP preview from the last smart-default submission
+      if (lastData) {
+        const previewRaw = lastData.tpPreview ?? lastData.value?.tpPreview;
+        const preview = typeof previewRaw === 'string' ? JSON.parse(previewRaw) : previewRaw;
+        if (preview) setTpPreview(preview);
       }
 
       const medConf = defaults.filter(d => d.confidence === 'medium');
