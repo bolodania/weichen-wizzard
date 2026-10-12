@@ -37,10 +37,39 @@ service WizardService @(path: '/wizard') {
     openFields   : String; // JSON
   };
 
-  function getNextQuestion(sessionId : String) returns String; // JSON
-  function getTPPreview(sessionId    : String) returns String; // JSON
-  function getOpenFields(sessionId   : String) returns String; // JSON
-  function exportSessionCSV(sessionId: String) returns String; // CSV string
+  // Two-role workflow actions
+  action submitSession(
+    sessionId    : String
+  ) returns {
+    sessionId    : String;
+    message      : String;
+  };
+
+  action editAnswer(
+    sessionId    : String,
+    questionId   : String,
+    answer       : String
+  ) returns {
+    sessionId    : String;
+    tpPreview    : String; // JSON
+  };
+
+  action approveSession(
+    sessionId    : String
+  ) returns {
+    sessionId    : String;
+    created      : String; // JSON array of created TP keys
+    failed       : String; // JSON array of failed TPs
+    openFields   : String; // JSON
+  };
+
+  function getSmartDefaults(basicForm : String) returns String; // JSON array
+  function listPendingSessions()                returns String; // JSON array
+  function getOpenHints(sessionId    : String)  returns String; // JSON array
+  function getNextQuestion(sessionId : String)  returns String; // JSON
+  function getTPPreview(sessionId    : String)  returns String; // JSON
+  function getOpenFields(sessionId   : String)  returns String; // JSON
+  function exportSessionCSV(sessionId: String)  returns String; // CSV string
 
   // Health check
   function health() returns String;
