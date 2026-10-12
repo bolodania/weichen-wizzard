@@ -221,7 +221,23 @@ module.exports = (srv) => {
 
     session.status = 'submitted';
     session.submittedAt = new Date().toISOString();
-    LOG.info(`Session submitted: ${sessionId}`);
+
+    const db = await cds.connect.to('db');
+    await db.run(INSERT.into('tp.wizard.WizardSession').entries({
+      sessionId:      session.sessionId,
+      ds100:          session.ds100,
+      switchNumber:   session.switchNumber,
+      basicForm:      session.basicForm,
+      answersJson:    JSON.stringify(session.answers),
+      status:         session.status,
+      derivedTPCount: session.tpPreview?.length ?? 0,
+      createdAt:      session.createdAt,
+      submittedAt:    session.submittedAt,
+      approvedAt:     null,
+      creationResult: null
+    }));
+
+    LOG.info(`Session submitted and persisted: ${sessionId}`);
     return { sessionId, message: 'Einreichung erfolgreich — wartet auf Freigabe durch Thomas' };
   });
 
@@ -295,7 +311,7 @@ module.exports = (srv) => {
     session.derivedTPCount = tps.length;
     session.creationResult = JSON.stringify(result);
 
-    await db.run(INSERT.into('tp.wizard.WizardSession').entries({
+    await db.run(UPSERT.into('tp.wizard.WizardSession').entries({
       sessionId: session.sessionId,
       ds100: session.ds100,
       switchNumber: session.switchNumber,
