@@ -1,0 +1,14 @@
+apiVersion: solution.sap/v1
+kind: Solution
+
+metadata:
+  name: tp-wizard-weiche-c5942
+  version: 1.0.0
+  description: >
+    Guided wizard for creating SAP Functional Location (Technische Platz)
+    hierarchies for railway switches (Weichen) at DB InfraGO — without
+    requiring knowledge of SAP TP key systematics.
+
+assets:
+  - ref: ./assets/tp-wizard-cap/asset.yaml
+  - ref: ./assets/tp-wizard-agent/asset.yaml

@@ -1,0 +1,23 @@
+{
+  "name": "tp-wizard-ui",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@ui5/webcomponents": "^2",
+    "@ui5/webcomponents-react": "^2",
+    "@ui5/webcomponents-fiori": "^2",
+    "react": "^18",
+    "react-dom": "^18",
+    "axios": "^1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4",
+    "vite": "^5"
+  },
+  "scripts": {
+    "start": "vite --port 3000",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "proxy": "http://localhost:4004"
+}

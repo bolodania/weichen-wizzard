@@ -1,0 +1,50 @@
+{
+  "name": "tp-wizard-cap",
+  "version": "1.0.0",
+  "description": "TP-Wizard Weiche – CAP backend + React/UI5 frontend",
+  "scripts": {
+    "start": "cds-serve",
+    "dev": "cds watch",
+    "build": "cds build --production && npm run build:ui",
+    "build:ui": "cd app && npm install && npm run build",
+    "test": "jest --forceExit"
+  },
+  "dependencies": {
+    "@sap/cds": "^8",
+    "@sap-cloud-sdk/http-client": "^3",
+    "express": "^4",
+    "sqlite3": "^5",
+    "uuid": "^9"
+  },
+  "devDependencies": {
+    "jest": "^29",
+    "@types/jest": "^29",
+    "supertest": "^6",
+    "axios": "^1"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["**/test/**/*.test.js"],
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": ["srv/**/*.js"]
+  },
+  "cds": {
+    "requires": {
+      "db": {
+        "kind": "sqlite",
+        "credentials": { "url": ":memory:", "journal_mode": "wal" }
+      },
+      "S4H_FL": {
+        "kind": "odata-v2",
+        "model": "srv/external/API_FUNCTIONALLOCATION",
+        "credentials": { "destination": "S4H_FL" }
+      },
+      "S4H_FLHIER": {
+        "kind": "odata-v2",
+        "model": "srv/external/FUNCNLLOCSTRUCLIST_0001",
+        "credentials": { "destination": "S4H_FL" }
+      }
+    },
+    "server": { "port": 4004 }
+  }
+}
