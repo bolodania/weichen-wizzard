@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Title, Input, Button, ObjectStatus, Panel, FlexBox, Text } from '@ui5/webcomponents-react';
+import { Title, Input, Button, ObjectStatus, FlexBox, Text } from '@ui5/webcomponents-react';
 
 const SOURCE_STATE = {
   auto:               'None',
@@ -60,26 +60,11 @@ function AnswerRow({ answer, onEdit }) {
 
 export function AnswerSection({ session, onEdit }) {
   if (!session?.answers) return null;
-  const byArea = {};
-  for (const a of session.answers) {
-    const key = `${a.area || 0}_${a.areaName || ''}`;
-    if (!byArea[key]) byArea[key] = { area: a.area, areaName: a.areaName, answers: [] };
-    byArea[key].answers.push(a);
-  }
-
   return (
     <div style={{ marginTop: '1rem' }}>
       <Title level="H5" style={{ padding: '0 1rem' }}>Antworten</Title>
-      {Object.values(byArea).map(group => (
-        <Panel
-          key={group.area}
-          headerText={`Bereich ${group.area}: ${group.areaName}`}
-          style={{ marginTop: '0.5rem' }}
-        >
-          {group.answers.map(a => (
-            <AnswerRow key={a.questionId} answer={a} onEdit={(qId, val) => onEdit(session.sessionId, qId, val)} />
-          ))}
-        </Panel>
+      {session.answers.map(a => (
+        <AnswerRow key={a.questionId} answer={a} onEdit={(qId, val) => onEdit(session.sessionId, qId, val)} />
       ))}
     </div>
   );

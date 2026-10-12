@@ -41,17 +41,7 @@ export function useApprovalSessions() {
       const hints   = parseJson(hintsResp.data);
       const preview = parseJson(previewResp.data);
       const sessData = sessResp.data;
-      const answersRaw = JSON.parse(sessData.answersJson || '[]');
-
-      // Enrich answers with question text and area from hints
-      const hintMap = {};
-      for (const h of hints) hintMap[h.questionId] = h;
-      const answers = answersRaw.map(a => ({
-        ...a,
-        questionText: hintMap[a.questionId]?.questionText || a.questionId,
-        area:         hintMap[a.questionId]?.area || 0,
-        areaName:     hintMap[a.questionId]?.areaName || '',
-      }));
+      const answers = JSON.parse(sessData.answersJson || '[]');
 
       setSelected({
         sessionId,
