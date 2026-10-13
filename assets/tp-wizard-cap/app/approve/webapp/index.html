@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TP-Wizard — Freigabe</title>
+    <!-- Ushell sandbox: provides sap.ushell APIs needed by sap.fe.templates in standalone mode -->
+    <script>
+        window["sap-ushell-config"] = {
+            defaultRenderer: "fiori2",
+            renderers: {
+                fiori2: {
+                    componentData: {
+                        config: { enableSearch: false, rootIntent: "Shell-home" }
+                    }
+                }
+            }
+        };
+    </script>
+    <script src="https://ui5.sap.com/1.120.28/test-resources/sap/ushell/bootstrap/sandbox.js"></script>
+    <script id="sap-ui-bootstrap"
+        src="https://ui5.sap.com/1.120.28/resources/sap-ui-core.js"
+        data-sap-ui-theme="sap_horizon"
+        data-sap-ui-resourceroots='{"tp.wizard.approve": "./"}'
+        data-sap-ui-compatVersion="edge"
+        data-sap-ui-async="true"
+        data-sap-ui-frameOptions="allow"
+        data-sap-ui-preload="async"
+        data-sap-ui-on-init="module:sap/ui/core/ComponentSupport"
+    ></script>
+</head>
+<body class="sapUiBody">
+    <div data-sap-ui-component
+        data-name="tp.wizard.approve"
+        data-id="container"
+        data-settings='{"id": "tp-wizard-approve"}'
+        data-async="true"
+        style="height: 100%">
+    </div>
+</body>
+</html>

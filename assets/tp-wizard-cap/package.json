@@ -45,6 +45,19 @@
         "credentials": { "destination": "S4H_FL" }
       }
     },
-    "server": { "port": 4004 }
+    "server": { "port": 4004 },
+    "roots": ["db/", "srv/", "app/approve/"],
+    "fiori": {
+      "preview": {
+        "ui5": {
+          "version": "1.120.28",
+          "theme": {
+            "light": "sap_horizon",
+            "dark": "sap_horizon_dark",
+            "switch": true
+          }
+        }
+      }
+    }
   }
 }
