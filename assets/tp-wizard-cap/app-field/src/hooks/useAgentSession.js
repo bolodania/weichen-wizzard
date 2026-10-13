@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 
+const CAP_BASE = '/wizard';
 const AGENT_BASE = '/agent';
 let rpcId = 1;
 
@@ -61,15 +62,6 @@ async function a2aSend(text, contextId) {
   return { agentText, contextId: nextContextId };
 }
 
-function extractTpPreview(text) {
-  try {
-    const match = text.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/) ||
-                  text.match(/(\[[\s\S]*"tp"[\s\S]*?\])/);
-    if (match) return JSON.parse(match[1]);
-  } catch (_) { /* not a JSON block */ }
-  return null;
-}
-
 export function useAgentSession() {
   const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages]   = useState([]);
@@ -77,6 +69,7 @@ export function useAgentSession() {
   const [status, setStatus]       = useState('idle');
   const [error, setError]         = useState(null);
   const contextIdRef              = useRef(null);
+  const sessionIdRef              = useRef(null); // ref for closure access in sendAnswer
 
   const addMsg = (role, text) =>
     setMessages(prev => [...prev, { role, text, id: crypto.randomUUID() }]);
@@ -84,8 +77,6 @@ export function useAgentSession() {
   const handleAgentReply = (agentText) => {
     if (!agentText) return;
     addMsg('agent', agentText);
-    const tps = extractTpPreview(agentText);
-    if (tps) setTpPreview(tps);
   };
 
   async function a2aSendWithRetry(text, contextId, retriesLeft = MAX_RETRIES) {
@@ -97,24 +88,62 @@ export function useAgentSession() {
     return result;
   }
 
+  async function refreshTpPreview(sid) {
+    if (!sid) return;
+    try {
+      const r = await fetch(`${CAP_BASE}/getTPPreview(sessionId='${sid}')`);
+      if (!r.ok) return;
+      const d = await r.json();
+      const raw = d?.value ?? d;
+      const tps = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (Array.isArray(tps)) setTpPreview(tps);
+    } catch (_) { /* non-critical — TP preview updates best-effort */ }
+  }
+
   const start = useCallback(async ({ ds100, switchNumber, basicForm }) => {
     setStatus('loading');
     setError(null);
     contextIdRef.current = null;
+    sessionIdRef.current = null;
+    setSessionId(null);
     setMessages([]);
     setTpPreview([]);
 
-    const intro = `Ich erfasse Weiche ${switchNumber} in Betriebsstelle ${ds100}. Grundbauform: ${basicForm}.`;
-    addMsg('katrin', intro);
+    // Create session directly so we reliably know the sessionId before the agent responds
+    let sid;
+    try {
+      const capRes = await fetch(`${CAP_BASE}/createSession`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ds100, switchNumber, basicForm }),
+      });
+      if (!capRes.ok) {
+        const txt = await capRes.text();
+        throw new Error(`createSession ${capRes.status}: ${txt}`);
+      }
+      const capData = await capRes.json();
+      sid = capData?.value?.sessionId ?? capData?.sessionId;
+      if (!sid) throw new Error('createSession returned no sessionId');
+      setSessionId(sid);
+      sessionIdRef.current = sid;
+    } catch (e) {
+      setError(e.message);
+      setStatus('error');
+      return;
+    }
+
+    // Show the user-facing intro in the chat
+    const displayMsg = `Ich erfasse Weiche ${switchNumber} in Betriebsstelle ${ds100}. Grundbauform: ${basicForm}.`;
+    addMsg('katrin', displayMsg);
+
+    // Tell the agent the session already exists so it skips createSession
+    const agentIntro = `Session-Id: ${sid}\nWeiche ${switchNumber} | Betriebsstelle ${ds100} | Grundbauform: ${basicForm}. Session wurde bereits erstellt. Bitte beginne sofort mit dem Frage-Dialog (getSmartDefaults → getNextQuestion → submitAnswer-Schleife).`;
 
     try {
-      const { agentText, contextId } = await a2aSendWithRetry(intro, null);
+      const { agentText, contextId } = await a2aSendWithRetry(agentIntro, null);
       contextIdRef.current = contextId;
-
-      const sidMatch = agentText.match(/[Ss]ession[- ]?[Ii][Dd][:\s]+([a-f0-9-]{36})/);
-      if (sidMatch) setSessionId(sidMatch[1]);
-
       handleAgentReply(agentText);
+      await refreshTpPreview(sid);
       setStatus('active');
     } catch (e) {
       setError(e.message);
@@ -132,6 +161,10 @@ export function useAgentSession() {
       contextIdRef.current = contextId;
       handleAgentReply(agentText);
 
+      // Always refresh TP preview from CAP — the agent may have submitted an answer
+      // that updated the derived TP list, but doesn't forward the JSON to the chat.
+      await refreshTpPreview(sessionIdRef.current);
+
       if (isSubmissionConfirmation(agentText)) {
         setStatus('submitted');
       } else {
@@ -143,7 +176,7 @@ export function useAgentSession() {
     }
   }, [status]);
 
-  // Kept for the SubmitSummary confirm button
+  // Kept for the SubmitSummary confirm button (fallback path)
   const submit = useCallback(async () => {
     if (!contextIdRef.current) return;
     setStatus('loading');
