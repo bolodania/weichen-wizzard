@@ -6,8 +6,8 @@ annotate WizardService.Sessions with @(
   UI.HeaderInfo: {
     TypeName:       'Einreichung',
     TypeNamePlural: 'Einreichungen',
-    Title:       { $Type: 'UI.DataField', Value: sessionId },
-    Description: { $Type: 'UI.DataField', Value: ds100 }
+    Title:       { $Type: 'UI.DataField', Value: ds100 },
+    Description: { $Type: 'UI.DataField', Value: switchNumber }
   },
 
   // Filter bar fields
@@ -75,6 +75,9 @@ annotate WizardService.Sessions with {
 
 // ── SessionAnswers — sub-table in Object Page ─────────────────────────────────
 annotate WizardService.SessionAnswers with @(
+  Capabilities.ReadRestrictions: {
+    ReadByKeyRestrictions: { Readable: false }
+  },
   UI.LineItem: [
     { $Type: 'UI.DataField', Value: area,          Label: 'Nr.'              },
     { $Type: 'UI.DataField', Value: areaName,      Label: 'Bereich'          },
