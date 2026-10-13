@@ -7,8 +7,8 @@ service WizardService @(path: '/wizard') {
   @readonly entity ForlaTemplates    as projection on wizard.ForlaTemplate;
   @readonly entity BasicFormMappings as projection on wizard.BasicFormMapping;
 
-  // Sessions — read-only header; Fiori Elements approve via bound action
-  @readonly entity Sessions as projection on wizard.WizardSession
+  // Sessions — Thomas can edit answers inline; header fields are @Core.Immutable
+  entity Sessions as projection on wizard.WizardSession
     actions {
       action approve() returns {
         sessionId  : String;

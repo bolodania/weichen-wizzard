@@ -71,9 +71,31 @@ annotate WizardService.Sessions with @(
 annotate WizardService.Sessions with {
   answersJson    @UI.Hidden;
   creationResult @UI.Hidden;
+  // Header fields — set at creation, Thomas cannot change them
+  ds100          @Core.Immutable;
+  switchNumber   @Core.Immutable;
+  basicForm      @Core.Immutable;
+  // System-managed fields — server sets these, not the client
+  status         @Core.Computed;
+  createdAt      @Core.Computed;
+  submittedAt    @Core.Computed;
+  approvedAt     @Core.Computed;
+  derivedTPCount @Core.Computed;
 };
 
 // ── SessionAnswers — sub-table in Object Page ─────────────────────────────────
+annotate WizardService.SessionAnswers with {
+  // Structural fields set at answer-recording time — cannot change
+  questionId    @Core.Immutable;
+  questionText  @Core.Immutable;
+  area          @Core.Immutable;
+  areaName      @Core.Immutable;
+  // Source and original proposal are server-managed
+  source        @Core.Computed;
+  agentProposal @Core.Computed;
+  // `answer` has no annotation → editable in Fiori Elements edit mode
+};
+
 annotate WizardService.SessionAnswers with @(
   Capabilities.ReadRestrictions: {
     ReadByKeyRestrictions: { Readable: false }
