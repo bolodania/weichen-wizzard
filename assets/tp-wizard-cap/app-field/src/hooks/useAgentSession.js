@@ -1,123 +1,165 @@
-import { useState, useCallback } from 'react';
-import axios from 'axios';
+import { useState, useCallback, useRef } from 'react';
 
-const BASE = '/wizard';
+const AGENT_BASE = '/agent';
+let rpcId = 1;
+
+// Keywords the agent uses when it has called submitSession and the session is done
+const SUBMISSION_SIGNALS = [
+  'thomas', 'freigabe', 'weitergeleitet', 'eingereicht', 'submitsession',
+];
+
+const AGENT_TRANSIENT_ERROR = 'I encountered an error while processing your request. Please try again.';
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 2000;
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function isSubmissionConfirmation(text) {
+  const lower = text.toLowerCase();
+  return SUBMISSION_SIGNALS.filter(kw => lower.includes(kw)).length >= 2;
+}
+
+async function a2aSend(text, contextId) {
+  const body = {
+    jsonrpc: '2.0',
+    method: 'message/send',
+    params: {
+      message: {
+        kind: 'message',
+        messageId: crypto.randomUUID(),
+        role: 'user',
+        parts: [{ kind: 'text', text }],
+        ...(contextId ? { contextId } : {}),
+      },
+    },
+    id: rpcId++,
+  };
+
+  const resp = await fetch(AGENT_BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error(`Agent HTTP ${resp.status}: ${txt}`);
+  }
+
+  const data = await resp.json();
+  if (data.error) throw new Error(`Agent error: ${data.error.message ?? JSON.stringify(data.error)}`);
+
+  const result = data.result;
+
+  // Text is in artifacts when completed, in status.message when input_required
+  const agentText =
+    result?.artifacts?.[0]?.parts?.[0]?.text ??
+    result?.status?.message?.parts?.[0]?.text ??
+    '';
+  const nextContextId = result?.contextId ?? contextId;
+
+  return { agentText, contextId: nextContextId };
+}
+
+function extractTpPreview(text) {
+  try {
+    const match = text.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/) ||
+                  text.match(/(\[[\s\S]*"tp"[\s\S]*?\])/);
+    if (match) return JSON.parse(match[1]);
+  } catch (_) { /* not a JSON block */ }
+  return null;
+}
 
 export function useAgentSession() {
-  const [sessionId, setSessionId]   = useState(null);
-  const [messages, setMessages]     = useState([]);
-  const [tpPreview, setTpPreview]   = useState([]);
-  const [pendingQ, setPendingQ]     = useState(null);
-  const [status, setStatus]         = useState('idle'); // idle|loading|active|all-answered|submitting|submitted|error
-  const [error, setError]           = useState(null);
+  const [sessionId, setSessionId] = useState(null);
+  const [messages, setMessages]   = useState([]);
+  const [tpPreview, setTpPreview] = useState([]);
+  const [status, setStatus]       = useState('idle');
+  const [error, setError]         = useState(null);
+  const contextIdRef              = useRef(null);
 
   const addMsg = (role, text) =>
     setMessages(prev => [...prev, { role, text, id: crypto.randomUUID() }]);
 
+  const handleAgentReply = (agentText) => {
+    if (!agentText) return;
+    addMsg('agent', agentText);
+    const tps = extractTpPreview(agentText);
+    if (tps) setTpPreview(tps);
+  };
+
+  async function a2aSendWithRetry(text, contextId, retriesLeft = MAX_RETRIES) {
+    const result = await a2aSend(text, contextId);
+    if (result.agentText === AGENT_TRANSIENT_ERROR && retriesLeft > 0) {
+      await sleep(RETRY_DELAY_MS);
+      return a2aSendWithRetry(text, contextId, retriesLeft - 1);
+    }
+    return result;
+  }
+
   const start = useCallback(async ({ ds100, switchNumber, basicForm }) => {
     setStatus('loading');
     setError(null);
+    contextIdRef.current = null;
+    setMessages([]);
+    setTpPreview([]);
+
+    const intro = `Ich erfasse Weiche ${switchNumber} in Betriebsstelle ${ds100}. Grundbauform: ${basicForm}.`;
+    addMsg('katrin', intro);
+
     try {
-      const { data: sess } = await axios.post(`${BASE}/createSession`, { ds100, switchNumber, basicForm });
-      const sid = sess.sessionId ?? sess.value?.sessionId;
-      setSessionId(sid);
+      const { agentText, contextId } = await a2aSendWithRetry(intro, null);
+      contextIdRef.current = contextId;
 
-      // Pre-answer the identity questions so getNextQuestion skips them
-      await axios.post(`${BASE}/submitAnswer`, { sessionId: sid, questionId: 'ds100',        answer: ds100,       source: 'katrin-confirmed' });
-      await axios.post(`${BASE}/submitAnswer`, { sessionId: sid, questionId: 'switchNumber', answer: switchNumber, source: 'katrin-confirmed' });
-      await axios.post(`${BASE}/submitAnswer`, { sessionId: sid, questionId: 'basicForm',    answer: basicForm,   source: 'katrin-confirmed' });
+      const sidMatch = agentText.match(/[Ss]ession[- ]?[Ii][Dd][:\s]+([a-f0-9-]{36})/);
+      if (sidMatch) setSessionId(sidMatch[1]);
 
-      const { data: defaultsResp } = await axios.get(`${BASE}/getSmartDefaults(basicForm='${basicForm}')`);
-      const defaultsRaw = defaultsResp.value ?? defaultsResp;
-      const defaults = typeof defaultsRaw === 'string' ? JSON.parse(defaultsRaw) : defaultsRaw;
-
-      const highConf = defaults.filter(d => d.confidence === 'high');
-      let lastData;
-      for (const d of highConf) {
-        const { data } = await axios.post(`${BASE}/submitAnswer`, {
-          sessionId: sid, questionId: d.questionId, answer: d.defaultAnswer, source: 'agent-default'
-        });
-        lastData = data;
-      }
-
-      // Update TP preview from the last smart-default submission
-      if (lastData) {
-        const previewRaw = lastData.tpPreview ?? lastData.value?.tpPreview;
-        const preview = typeof previewRaw === 'string' ? JSON.parse(previewRaw) : previewRaw;
-        if (preview) setTpPreview(preview);
-      }
-
-      const medConf = defaults.filter(d => d.confidence === 'medium');
-      const lines = [...highConf, ...medConf].map(d => `• ${d.rationale}`).join('\n');
-      addMsg('agent',
-        `Hallo! Ich habe die Standardkonfiguration für ${basicForm} geladen.\n\n` +
-        `Folgende Werte wurden automatisch gesetzt:\n${lines}\n\n` +
-        `Gibt es bei dieser Weiche Besonderheiten, die davon abweichen?`
-      );
-
-      const { data: nextQResp } = await axios.get(`${BASE}/getNextQuestion(sessionId='${sid}')`);
-      const nextQRaw = nextQResp.value ?? nextQResp;
-      const nextQ = typeof nextQRaw === 'string' ? JSON.parse(nextQRaw) : nextQRaw;
-      if (nextQ) {
-        setPendingQ(nextQ);
-        addMsg('agent', nextQ.text);
-      } else {
-        setStatus('all-answered');
-        addMsg('agent', 'Alle Fragen wurden beantwortet. Bitte bestätige die Einreichung.');
-        return;
-      }
-
+      handleAgentReply(agentText);
       setStatus('active');
     } catch (e) {
-      setError(e.response?.data?.error?.message ?? e.message);
+      setError(e.message);
       setStatus('error');
     }
   }, []);
 
   const sendAnswer = useCallback(async (text) => {
-    if (!pendingQ || !sessionId) return;
+    if (status !== 'active') return;
     addMsg('katrin', text);
+    setStatus('loading');
 
     try {
-      const { data } = await axios.post(`${BASE}/submitAnswer`, {
-        sessionId,
-        questionId: pendingQ.id,
-        answer: text.trim(),
-        source: 'katrin-confirmed'
-      });
+      const { agentText, contextId } = await a2aSendWithRetry(text, contextIdRef.current);
+      contextIdRef.current = contextId;
+      handleAgentReply(agentText);
 
-      const previewRaw = data.tpPreview ?? data.value?.tpPreview;
-      const preview = typeof previewRaw === 'string' ? JSON.parse(previewRaw) : previewRaw;
-      if (preview) setTpPreview(preview);
-
-      addMsg('agent', `✓ Verstanden. Bisher ${preview?.length ?? 0} Technische Plätze erkannt.`);
-
-      const nextQRaw = data.nextQuestion ?? data.value?.nextQuestion;
-      const nextQ = typeof nextQRaw === 'string' ? JSON.parse(nextQRaw) : nextQRaw;
-      if (nextQ) {
-        setPendingQ(nextQ);
-        addMsg('agent', nextQ.text);
+      if (isSubmissionConfirmation(agentText)) {
+        setStatus('submitted');
       } else {
-        setPendingQ(null);
-        setStatus('all-answered');
-        addMsg('agent', 'Alle Angaben vollständig. Soll ich die Einreichung zur Freigabe weiterleiten?');
+        setStatus('active');
       }
     } catch (e) {
-      setError(e.response?.data?.error?.message ?? e.message);
+      setError(e.message);
+      setStatus('active');
     }
-  }, [pendingQ, sessionId]);
+  }, [status]);
 
+  // Kept for the SubmitSummary confirm button
   const submit = useCallback(async () => {
-    setStatus('submitting');
+    if (!contextIdRef.current) return;
+    setStatus('loading');
+    const confirmText = 'Ja, bitte einreichen.';
+    addMsg('katrin', confirmText);
+
     try {
-      await axios.post(`${BASE}/submitSession`, { sessionId });
-      addMsg('agent', `Einreichung weitergeleitet. Referenz: ${sessionId}`);
+      const { agentText, contextId } = await a2aSendWithRetry(confirmText, contextIdRef.current);
+      contextIdRef.current = contextId;
+      handleAgentReply(agentText);
       setStatus('submitted');
     } catch (e) {
-      setError(e.response?.data?.error?.message ?? e.message);
+      setError(e.message);
       setStatus('error');
     }
-  }, [sessionId]);
+  }, []);
 
   return { sessionId, messages, tpPreview, status, error, start, sendAnswer, submit, addMsg };
 }

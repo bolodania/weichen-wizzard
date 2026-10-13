@@ -1,8 +1,8 @@
 'use strict';
 
 const { deriveTPStructure, validateTPStructure } = require('../srv/rule-engine-service');
-const forlaTemplates   = require('../db/data/ForlaTemplate.json');
-const basicFormMappings = require('../db/data/BasicFormMapping.json');
+const forlaTemplates   = require('../db/data/tp.wizard.ForlaTemplate.json');
+const basicFormMappings = require('../db/data/tp.wizard.BasicFormMapping.json');
 
 // ── NI_W2006: einfache Weiche rechts, Hz starr, 1 Zgv-Antrieb, elektrische Heizung
 const NI_W2006_INPUT = {
