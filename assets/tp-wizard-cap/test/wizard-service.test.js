@@ -106,6 +106,15 @@ describe('listPendingSessions', () => {
   });
 });
 
+// ── confirmSession MUST NOT exist (two-role safety) ──────────────────────────
+describe('confirmSession removed', () => {
+  test('confirmSession endpoint is not available (404)', async () => {
+    const sid = await createSession('NI', '7001', 'EWL');
+    await expect(POST('/wizard/confirmSession', { sessionId: sid }))
+      .rejects.toMatchObject({ response: { status: 404 } });
+  });
+});
+
 // ── getOpenHints ──────────────────────────────────────────────────────────────
 describe('getOpenHints', () => {
   test('returns hints for agent-default answers', async () => {

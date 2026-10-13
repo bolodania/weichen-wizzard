@@ -28,15 +28,6 @@ service WizardService @(path: '/wizard') {
     tpPreview    : String; // JSON
   };
 
-  action confirmSession(
-    sessionId    : String
-  ) returns {
-    sessionId    : String;
-    created      : String; // JSON array of created TP keys
-    failed       : String; // JSON array of failed TPs
-    openFields   : String; // JSON
-  };
-
   // Two-role workflow actions
   action submitSession(
     sessionId    : String

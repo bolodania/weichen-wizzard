@@ -99,55 +99,6 @@ module.exports = (srv) => {
     };
   });
 
-  // ── Confirm Session (trigger SAP creation) ────────────────────────────────
-  srv.on('confirmSession', async (req) => {
-    const { sessionId } = req.data;
-    const session = SESSION_STORE.get(sessionId);
-    if (!session) return req.error(404, `Session ${sessionId} nicht gefunden`);
-    if (session.status !== 'open') return req.error(409, 'Session ist bereits abgeschlossen');
-
-    const db = await cds.connect.to('db');
-    const forlaTemplates    = await db.run(SELECT.from('tp.wizard.ForlaTemplate'));
-    const basicFormMappings = await db.run(SELECT.from('tp.wizard.BasicFormMapping'));
-
-    const { tps } = deriveTPStructure(
-      { basicForm: session.basicForm, ds100: session.ds100, switchNumber: session.switchNumber, answers: session.answers },
-      forlaTemplates,
-      basicFormMappings
-    );
-
-    const validation = validateTPStructure(tps, forlaTemplates);
-    if (!validation.valid) {
-      return req.error(422, `TP-Struktur ungültig: ${validation.warnings.join(', ')}`);
-    }
-
-    const result = await flService.bulkCreateFunctionalLocations(tps);
-
-    session.status = 'created';
-    session.derivedTPCount = tps.length;
-    session.creationResult = JSON.stringify(result);
-
-    // Persist audit record to DB
-    await db.run(INSERT.into('tp.wizard.WizardSession').entries({
-      sessionId: session.sessionId,
-      ds100: session.ds100,
-      switchNumber: session.switchNumber,
-      basicForm: session.basicForm,
-      answersJson: JSON.stringify(session.answers),
-      status: session.status,
-      derivedTPCount: session.derivedTPCount,
-      createdAt: session.createdAt,
-      creationResult: session.creationResult
-    }));
-
-    return {
-      sessionId,
-      created: JSON.stringify(result.created),
-      failed:  JSON.stringify(result.failed),
-      openFields: JSON.stringify([])
-    };
-  });
-
   // ── Get Next Question ─────────────────────────────────────────────────────
   srv.on('getNextQuestion', async (req) => {
     const sessionId = req.data.sessionId;
