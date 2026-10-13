@@ -198,6 +198,50 @@ describe('Rule Engine — Rückbaustatus suppression', () => {
   });
 });
 
+describe('Rule Engine — Isolierstoß keys', () => {
+  test('ZGVL generates VORLA--WE------1ZUBA-ISO1 key', () => {
+    const { tps } = deriveTPStructure(NRB_W806_INPUT, forlaTemplates, basicFormMappings);
+    const iso = tps.find(tp => tp.isoPos === 'ZGVL');
+    expect(iso).toBeDefined();
+    expect(iso.vorlaKey).toBe('VORLA--WE------1ZUBA-ISO1');
+  });
+
+  test('ZGVR generates VORLA--WE------1ZUBA-ISO2 key', () => {
+    const { tps } = deriveTPStructure(NRB_W806_INPUT, forlaTemplates, basicFormMappings);
+    const iso = tps.find(tp => tp.isoPos === 'ZGVR');
+    expect(iso).toBeDefined();
+    expect(iso.vorlaKey).toBe('VORLA--WE------1ZUBA-ISO2');
+  });
+
+  test('STRAL generates VORLA--WE------1STR-AISO1 key', () => {
+    const { tps } = deriveTPStructure(NRB_W806_INPUT, forlaTemplates, basicFormMappings);
+    const iso = tps.find(tp => tp.isoPos === 'STRAL');
+    expect(iso).toBeDefined();
+    expect(iso.vorlaKey).toBe('VORLA--WE------1STR-AISO1');
+  });
+
+  test('STRAR generates VORLA--WE------1STR-AISO2 key', () => {
+    const { tps } = deriveTPStructure(NRB_W806_INPUT, forlaTemplates, basicFormMappings);
+    const iso = tps.find(tp => tp.isoPos === 'STRAR');
+    expect(iso).toBeDefined();
+    expect(iso.vorlaKey).toBe('VORLA--WE------1STR-AISO2');
+  });
+
+  test('HZL generates VORLA--WE------1HZ-ABISO1 key', () => {
+    const { tps } = deriveTPStructure(NRB_W806_INPUT, forlaTemplates, basicFormMappings);
+    const iso = tps.find(tp => tp.isoPos === 'HZL');
+    expect(iso).toBeDefined();
+    expect(iso.vorlaKey).toBe('VORLA--WE------1HZ-ABISO1');
+  });
+
+  test('HZR generates VORLA--WE------1HZ-ABISO2 key', () => {
+    const { tps } = deriveTPStructure(NRB_W806_INPUT, forlaTemplates, basicFormMappings);
+    const iso = tps.find(tp => tp.isoPos === 'HZR');
+    expect(iso).toBeDefined();
+    expect(iso.vorlaKey).toBe('VORLA--WE------1HZ-ABISO2');
+  });
+});
+
 describe('Rule Engine — validateTPStructure', () => {
   test('valid TPs pass validation', () => {
     const { tps } = deriveTPStructure(NI_W2006_INPUT, forlaTemplates, basicFormMappings);
