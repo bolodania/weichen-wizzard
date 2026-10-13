@@ -109,7 +109,7 @@ describe('Rule Engine — deriveTPStructure', () => {
 
   test('NRB_W806: Übertragungsgestänge Zgv present (2 Antriebe)', () => {
     const { tps } = deriveTPStructure(NRB_W806_INPUT, forlaTemplates, basicFormMappings);
-    const ug = tps.filter(tp => tp.vorlaKey && tp.vorlaKey.includes('ZUBA-UG'));
+    const ug = tps.filter(tp => tp.vorlaKey && tp.vorlaKey.includes('ZUBA-WA-01UEG-'));
     expect(ug.length).toBeGreaterThan(0);
   });
 
