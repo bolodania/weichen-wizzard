@@ -54,6 +54,12 @@ function deriveTPStructure(input, forlaTemplates, basicFormMappings) {
   const gleisstückEndA            = ans('gleisstückEndA', false) === true || ans('gleisstückEndA') === 'true';
   const gleisstückEndB            = ans('gleisstückEndB', false) === true || ans('gleisstückEndB') === 'true';
 
+  // ── Safety gate: decommissioned switch (Rückbaustatus 7/8) ─────────────
+  const rückbauStatus = parseInt(ans('rückbauStatus', '0'), 10);
+  if (rückbauStatus === 7 || rückbauStatus === 8) {
+    return { tps: [], hzBeweglich, openFields: [] };
+  }
+
   const derivedTPs = [];
 
   // ── Step 3: Automatic TPs from Forla (rückbauStatus=0 only) ─────────────

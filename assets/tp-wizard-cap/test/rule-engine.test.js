@@ -143,6 +143,61 @@ describe('Rule Engine — deriveTPStructure', () => {
   });
 });
 
+describe('Rule Engine — Rückbaustatus suppression', () => {
+  const baseInput = {
+    basicForm: 'EWR',
+    ds100: 'NI',
+    switchNumber: '2006',
+    answers: [
+      { questionId: 'stwBauform',              answer: 'SETEDBRU' },
+      { questionId: 'anzahlVerschlussebenenZgv',answer: '1' },
+      { questionId: 'anzahlZungRollpaarZgv',    answer: '3' },
+      { questionId: 'herzstückbauart',          answer: '0' },
+      { questionId: 'federwippe',               answer: 'false' },
+      { questionId: 'radsensoren',              answer: '0' },
+      { questionId: 'anzahlAntriebeZgv',        answer: '1' },
+      { questionId: 'hydraulisch',              answer: 'false' },
+      { questionId: 'weichensignale',           answer: '0' },
+      { questionId: 'lichtpunkte',              answer: '0' },
+      { questionId: 'weichensteuerung',         answer: 'false' },
+      { questionId: 'weichenüberwachung',       answer: 'false' },
+      { questionId: 'isoPositions',             answer: '[]' },
+      { questionId: 'havPositions',             answer: '[]' },
+      { questionId: 'prellbock',                answer: 'false' },
+      { questionId: 'gleisstückWP',             answer: 'false' },
+      { questionId: 'gleisstückEndA',           answer: 'false' },
+      { questionId: 'gleisstückEndB',           answer: 'false' },
+      { questionId: 'erdung',                   answer: 'false' },
+      { questionId: 'heizungTyp',               answer: 'elektrisch' }
+    ]
+  };
+
+  function withStatus(status) {
+    return {
+      ...baseInput,
+      answers: [
+        ...baseInput.answers,
+        { questionId: 'rückbauStatus', answer: String(status) }
+      ]
+    };
+  }
+
+  test('rückbauStatus 7: no TPs generated (decommissioned)', () => {
+    const { tps } = deriveTPStructure(withStatus(7), forlaTemplates, basicFormMappings);
+    expect(tps.length).toBe(0);
+  });
+
+  test('rückbauStatus 8: no TPs generated (demolished)', () => {
+    const { tps } = deriveTPStructure(withStatus(8), forlaTemplates, basicFormMappings);
+    expect(tps.length).toBe(0);
+  });
+
+  test('rückbauStatus 0: TPs generated normally', () => {
+    const { tps } = deriveTPStructure(withStatus(0), forlaTemplates, basicFormMappings);
+    expect(tps.length).toBeGreaterThan(0);
+  });
+});
+
 describe('Rule Engine — validateTPStructure', () => {
   test('valid TPs pass validation', () => {
     const { tps } = deriveTPStructure(NI_W2006_INPUT, forlaTemplates, basicFormMappings);
