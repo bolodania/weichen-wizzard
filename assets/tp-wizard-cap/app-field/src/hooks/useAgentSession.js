@@ -70,6 +70,7 @@ export function useAgentSession() {
   const [error, setError]         = useState(null);
   const contextIdRef              = useRef(null);
   const sessionIdRef              = useRef(null); // ref for closure access in sendAnswer
+  const isProcessingRef           = useRef(false); // synchronous guard — prevents concurrent agent calls
 
   const addMsg = (role, text) =>
     setMessages(prev => [...prev, { role, text, id: crypto.randomUUID() }]);
@@ -126,6 +127,7 @@ export function useAgentSession() {
       if (!sid) throw new Error('createSession returned no sessionId');
       setSessionId(sid);
       sessionIdRef.current = sid;
+      await refreshTpPreview(sid); // show automatic TPs immediately
     } catch (e) {
       setError(e.message);
       setStatus('error');
@@ -151,8 +153,31 @@ export function useAgentSession() {
     }
   }, []);
 
+  async function ensureSubmitted(sid) {
+    // Guard: if the agent said it submitted but never called the CAP endpoint,
+    // call it directly so Thomas always sees the session.
+    try {
+      const r = await fetch(`${CAP_BASE}/submitSession`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: sid }),
+      });
+      // 409 = already submitted — that's fine, session is in the right state
+      if (!r.ok && r.status !== 409) {
+        const txt = await r.text();
+        console.warn('ensureSubmitted failed:', r.status, txt);
+      }
+    } catch (e) {
+      console.warn('ensureSubmitted error:', e.message);
+    }
+  }
+
   const sendAnswer = useCallback(async (text) => {
-    if (status !== 'active') return;
+    // Synchronous ref check prevents concurrent agent calls from racing.
+    // React state (status) uses a stale closure so it cannot reliably block
+    // rapid re-fires; the ref is always current.
+    if (isProcessingRef.current || status !== 'active') return;
+    isProcessingRef.current = true;
     addMsg('katrin', text);
     setStatus('loading');
 
@@ -166,6 +191,9 @@ export function useAgentSession() {
       await refreshTpPreview(sessionIdRef.current);
 
       if (isSubmissionConfirmation(agentText)) {
+        // Guarantee the CAP session is submitted regardless of whether the agent
+        // actually called submitSession via MCP — keyword detection is not reliable enough.
+        await ensureSubmitted(sessionIdRef.current);
         setStatus('submitted');
       } else {
         setStatus('active');
@@ -173,20 +201,27 @@ export function useAgentSession() {
     } catch (e) {
       setError(e.message);
       setStatus('active');
+    } finally {
+      isProcessingRef.current = false;
     }
   }, [status]);
 
-  // Kept for the SubmitSummary confirm button (fallback path)
+  // SubmitSummary confirm button — calls CAP directly, no agent round-trip needed
   const submit = useCallback(async () => {
-    if (!contextIdRef.current) return;
+    const sid = sessionIdRef.current;
+    if (!sid) return;
     setStatus('loading');
-    const confirmText = 'Ja, bitte einreichen.';
-    addMsg('katrin', confirmText);
 
     try {
-      const { agentText, contextId } = await a2aSendWithRetry(confirmText, contextIdRef.current);
-      contextIdRef.current = contextId;
-      handleAgentReply(agentText);
+      const r = await fetch(`${CAP_BASE}/submitSession`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: sid }),
+      });
+      if (!r.ok && r.status !== 409) {
+        const txt = await r.text();
+        throw new Error(`submitSession ${r.status}: ${txt}`);
+      }
       setStatus('submitted');
     } catch (e) {
       setError(e.message);
