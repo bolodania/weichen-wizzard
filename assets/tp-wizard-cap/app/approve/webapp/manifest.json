@@ -38,10 +38,13 @@
     },
     "models": {
       "": {
+        "type": "sap.ui.model.odata.v4.ODataModel",
         "dataSource": "mainService",
         "settings": {
           "autoExpandSelect": true,
-          "earlyRequests": true
+          "earlyRequests": true,
+          "synchronizationMode": "None",
+          "operationMode": "Server"
         }
       }
     },
@@ -65,9 +68,16 @@
           "name": "sap.fe.templates.ListReport",
           "options": {
             "settings": {
-              "entitySet": "Sessions",
+              "contextPath": "/Sessions",
               "initialLoad": "Enabled",
-              "variantManagement": "None"
+              "variantManagement": "None",
+              "navigation": {
+                "Sessions": {
+                  "detail": {
+                    "route": "SessionsObjectPage"
+                  }
+                }
+              }
             }
           }
         },
@@ -77,7 +87,9 @@
           "name": "sap.fe.templates.ObjectPage",
           "options": {
             "settings": {
-              "entitySet": "Sessions"
+              "contextPath": "/Sessions",
+              "editMode": "Editable",
+              "navigation": {}
             }
           }
         }
