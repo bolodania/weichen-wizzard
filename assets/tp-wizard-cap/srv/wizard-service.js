@@ -310,6 +310,72 @@ module.exports = (srv) => {
     return JSON.stringify(getSmartDefaults(basicForm));
   });
 
+  // ── Bulk Submit With Defaults (agent shortcut — applies all remaining smart defaults then submits) ──
+  srv.on('bulkSubmitWithDefaults', async (req) => {
+    const { sessionId } = req.data;
+    const session = SESSION_STORE.get(sessionId);
+    if (!session) return req.error(404, `Session ${sessionId} nicht gefunden`);
+    if (session.status !== 'open') {
+      return req.error(409, `Session hat Status "${session.status}" — bulkSubmitWithDefaults erfordert "open"`);
+    }
+
+    const defaults = getSmartDefaults(session.basicForm);
+    const answeredIds = new Set(session.answers.map(a => a.questionId));
+    let defaultedCount = 0;
+
+    for (const d of defaults) {
+      if (!answeredIds.has(d.questionId)) {
+        session.answers.push({
+          questionId:    d.questionId,
+          answer:        d.defaultAnswer,
+          source:        'agent-default',
+          agentProposal: null
+        });
+        defaultedCount++;
+      }
+    }
+
+    // Now run the same submit logic inline
+    session.status      = 'submitted';
+    session.submittedAt = new Date().toISOString();
+
+    const db = await cds.connect.to('db');
+    const forlaTemplates    = await db.run(SELECT.from('tp.wizard.ForlaTemplate'));
+    const basicFormMappings = await db.run(SELECT.from('tp.wizard.BasicFormMapping'));
+    const { tps } = deriveTPStructure(
+      { basicForm: session.basicForm, ds100: session.ds100, switchNumber: session.switchNumber, answers: session.answers },
+      forlaTemplates,
+      basicFormMappings
+    );
+    session.tpPreview = tps;
+
+    await db.run(INSERT.into('tp.wizard.WizardSession').entries({
+      sessionId:      session.sessionId,
+      ds100:          session.ds100,
+      switchNumber:   session.switchNumber,
+      basicForm:      session.basicForm,
+      answersJson:    JSON.stringify(session.answers),
+      status:         session.status,
+      derivedTPCount: tps.length,
+      createdAt:      session.createdAt,
+      submittedAt:    session.submittedAt,
+      approvedAt:     null,
+      creationResult: null,
+      reviewComment:  null
+    }));
+
+    await _upsertSessionAnswers(db, session);
+    await _upsertDerivedTPs(db, session.sessionId, tps);
+
+    LOG.info(`bulkSubmitWithDefaults: ${defaultedCount} defaults applied, session ${sessionId} submitted`);
+    return {
+      sessionId,
+      defaultedCount,
+      status:  'submitted',
+      message: `${defaultedCount} Standardwerte übernommen — Einreichung erfolgreich`
+    };
+  });
+
   // ── Submit Session (Katrin hands off to Thomas) ───────────────────────────
   srv.on('submitSession', async (req) => {
     const { sessionId } = req.data;

@@ -152,6 +152,47 @@ describe('getOpenHints', () => {
   });
 });
 
+// ── bulkSubmitWithDefaults ────────────────────────────────────────────────────
+describe('bulkSubmitWithDefaults', () => {
+  test('applies remaining smart defaults and submits session', async () => {
+    const sid = await createSession('NI', '5001', 'EWL');
+    // Confirm one question manually so it should not be re-defaulted
+    await POST('/wizard/submitAnswer', {
+      sessionId: sid, questionId: 'herzstückbauart', answer: '1', source: 'katrin-confirmed'
+    });
+    const res = await POST('/wizard/bulkSubmitWithDefaults', { sessionId: sid });
+    expect(res.status).toBe(200);
+    const body = res.data.value ?? res.data;
+    expect(body.sessionId).toBe(sid);
+    expect(typeof body.defaultedCount).toBe('number');
+    expect(body.defaultedCount).toBeGreaterThan(0);
+    expect(body.status).toBe('submitted');
+  });
+
+  test('does not re-default already confirmed answers', async () => {
+    const sid = await createSession('NI', '5003', 'EWL');
+    await POST('/wizard/submitAnswer', {
+      sessionId: sid, questionId: 'rückbauStatus', answer: '1', source: 'katrin-confirmed'
+    });
+    const res = await POST('/wizard/bulkSubmitWithDefaults', { sessionId: sid });
+    const body = res.data.value ?? res.data;
+    expect(body.status).toBe('submitted');
+    // The katrin-confirmed answer must survive unchanged
+    const sessionRes = await GET(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)/answers`);
+    const answers = sessionRes.data.value;
+    const rückbau = answers.find(a => a.questionId === 'rückbauStatus');
+    expect(rückbau?.source).toBe('katrin-confirmed');
+    expect(rückbau?.answer).toBe('1');
+  });
+
+  test('returns 409 if session is not open', async () => {
+    const sid = await createSession('NI', '5002', 'EWL');
+    await POST('/wizard/submitSession', { sessionId: sid });
+    await expect(POST('/wizard/bulkSubmitWithDefaults', { sessionId: sid }))
+      .rejects.toMatchObject({ response: { status: 409 } });
+  });
+});
+
 // ── DerivedTP rows ────────────────────────────────────────────────────────────
 describe('DerivedTP hierarchy', () => {
   test('submitSession persists DerivedTP rows with hierarchy', async () => {

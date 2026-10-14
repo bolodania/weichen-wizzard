@@ -54,6 +54,15 @@ service WizardService @(path: '/wizard') {
     message      : String;
   };
 
+  action bulkSubmitWithDefaults(
+    sessionId    : String
+  ) returns {
+    sessionId      : String;
+    defaultedCount : Integer;
+    status         : String;
+    message        : String;
+  };
+
   action editAnswer(
     sessionId    : String,
     questionId   : String,
