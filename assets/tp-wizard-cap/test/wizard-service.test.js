@@ -151,3 +151,35 @@ describe('getOpenHints', () => {
     expect(hints.length).toBe(2); // must match listPendingSessions count
   });
 });
+
+// ── DerivedTP rows ────────────────────────────────────────────────────────────
+describe('DerivedTP hierarchy', () => {
+  test('submitSession persists DerivedTP rows with hierarchy', async () => {
+    const sid = await createSession('NI', '9001', 'EWL');
+    await POST('/wizard/submitSession', { sessionId: sid });
+
+    const res = await GET(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)/tps`);
+    expect(res.status).toBe(200);
+    const items = res.data.value;
+    expect(Array.isArray(items)).toBe(true);
+    expect(items.length).toBeGreaterThan(0);
+
+    // Root TP has level 0 and no parent
+    const root = items.find(tp => tp.level === 0);
+    expect(root).toBeDefined();
+    expect(root.parentTpKey).toBeFalsy();
+
+    // Child TPs have level 1 and parentTpKey pointing to root
+    const children = items.filter(tp => tp.level === 1);
+    expect(children.length).toBeGreaterThan(0);
+    children.forEach(child => {
+      expect(child.parentTpKey).toBe(root.tpKey);
+    });
+
+    // Every row carries a tpKey and tpLabel
+    items.forEach(tp => {
+      expect(tp.tpKey).toBeTruthy();
+      expect(tp.tpLabel).toBeTruthy();
+    });
+  });
+});

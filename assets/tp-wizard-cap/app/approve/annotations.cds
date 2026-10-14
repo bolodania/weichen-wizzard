@@ -51,6 +51,12 @@ annotate WizardService.Sessions with @(
       ID:     'Answers',
       Label:  'Antworten',
       Target: 'answers/@UI.LineItem'
+    },
+    {
+      $Type:  'UI.ReferenceFacet',
+      ID:     'TPStructure',
+      Label:  'TP-Struktur',
+      Target: 'tps/@UI.LineItem'
     }
   ],
 
@@ -63,18 +69,26 @@ annotate WizardService.Sessions with @(
       { $Type: 'UI.DataField', Value: createdAt,      Label: 'Erstellt am'     },
       { $Type: 'UI.DataField', Value: submittedAt,    Label: 'Eingereicht am'  },
       { $Type: 'UI.DataField', Value: approvedAt,     Label: 'Freigegeben am'  },
-      { $Type: 'UI.DataField', Value: derivedTPCount, Label: 'Anzahl TPs'      }
+      { $Type: 'UI.DataField', Value: derivedTPCount, Label: 'Anzahl TPs'      },
+      { $Type: 'UI.DataField', Value: reviewComment,  Label: 'Prüfungsnotiz'   }
     ]
+  },
+
+  // Updatable: true makes the Edit button appear.
+  // NonUpdatableProperties lists the identification fields that Thomas cannot
+  // change — FE renders them read-only in edit mode without suppressing Edit.
+  // (Thomas edits answers in the sub-table, not the header fields.)
+  Capabilities.UpdateRestrictions: {
+    Updatable:              true,
+    NonUpdatableProperties: [ds100, switchNumber, basicForm]
   }
 );
 
 annotate WizardService.Sessions with {
   answersJson    @UI.Hidden;
   creationResult @UI.Hidden;
-  // Header fields — set at creation, Thomas cannot change them
-  ds100          @Core.Immutable;
-  switchNumber   @Core.Immutable;
-  basicForm      @Core.Immutable;
+  // Identification fields — read-only via NonUpdatableProperties in UpdateRestrictions.
+  // Server-side guard in wizard-service.js also strips these from any PATCH.
   // System-managed fields — server sets these, not the client
   status         @Core.Computed;
   createdAt      @Core.Computed;
@@ -93,13 +107,19 @@ annotate WizardService.SessionAnswers with {
   // Source and original proposal are server-managed
   source        @Core.Computed;
   agentProposal @Core.Computed;
-  // `answer` has no annotation → editable in Fiori Elements edit mode
+  // Technical FK — hide from all UI forms and tables
+  session       @UI.Hidden;
+  // `answer` is editable; multiline renders a textarea in edit mode
+  answer        @UI.MultiLineText;
 };
 
 annotate WizardService.SessionAnswers with @(
-  Capabilities.ReadRestrictions: {
-    ReadByKeyRestrictions: { Readable: false }
-  },
+  // Fiori Elements needs explicit capabilities to render edit controls in the sub-table.
+  // Without UpdateRestrictions the table stays read-only even when the Object Page is in edit mode.
+  Capabilities.UpdateRestrictions: { Updatable: true },
+  // Answers are recorded by the wizard; Thomas corrects them but never adds/removes rows.
+  Capabilities.InsertRestrictions: { Insertable: false },
+  Capabilities.DeleteRestrictions: { Deletable: false },
   UI.LineItem: [
     { $Type: 'UI.DataField', Value: area,          Label: 'Nr.'              },
     { $Type: 'UI.DataField', Value: areaName,      Label: 'Bereich'          },
@@ -107,5 +127,26 @@ annotate WizardService.SessionAnswers with @(
     { $Type: 'UI.DataField', Value: answer,        Label: 'Antwort'          },
     { $Type: 'UI.DataField', Value: source,        Label: 'Quelle'           },
     { $Type: 'UI.DataField', Value: agentProposal, Label: 'Agent-Vorschlag'  }
+  ]
+);
+
+// ── DerivedTPs — TP structure tree for Thomas ─────────────────────────────────
+annotate WizardService.DerivedTPs with {
+  session      @UI.Hidden;
+  parentTpKey  @UI.HiddenFilter;
+};
+
+annotate WizardService.DerivedTPs with @(
+  Capabilities.InsertRestrictions: { Insertable: false },
+  Capabilities.UpdateRestrictions: { Updatable:  false },
+  Capabilities.DeleteRestrictions: { Deletable:  false },
+  UI.LineItem: [
+    { $Type: 'UI.DataField', Value: level,        Label: 'Ebene'           },
+    { $Type: 'UI.DataField', Value: posNr,         Label: 'Pos.-Nr.'        },
+    { $Type: 'UI.DataField', Value: tpKey,         Label: 'TP-Schlüssel'    },
+    { $Type: 'UI.DataField', Value: tpLabel,       Label: 'Bezeichnung'     },
+    { $Type: 'UI.DataField', Value: areaName,      Label: 'Bereich'         },
+    { $Type: 'UI.DataField', Value: isAutomatic,   Label: 'Automatisch'     },
+    { $Type: 'UI.DataField', Value: parentTpKey,   Label: 'Übergeordnet'    }
   ]
 );

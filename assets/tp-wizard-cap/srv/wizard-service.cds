@@ -7,7 +7,8 @@ service WizardService @(path: '/wizard') {
   @readonly entity ForlaTemplates    as projection on wizard.ForlaTemplate;
   @readonly entity BasicFormMappings as projection on wizard.BasicFormMapping;
 
-  // Sessions — Thomas can edit answers inline; header fields are @Core.Immutable
+  // Sessions — draft-enabled so FE OData V4 renders the Edit/Save/Discard toolbar
+  @odata.draft.enabled
   entity Sessions as projection on wizard.WizardSession
     actions {
       action approve() returns {
@@ -20,6 +21,9 @@ service WizardService @(path: '/wizard') {
 
   // SessionAnswers — writable so Thomas can edit inline in Object Page
   entity SessionAnswers as projection on wizard.SessionAnswer;
+
+  // DerivedTPs — read-only snapshot of the TP structure Thomas reviews
+  @readonly entity DerivedTPs as projection on wizard.DerivedTP;
 
   // ── Agent / app-field actions (kept for backward compatibility) ───────────
 
