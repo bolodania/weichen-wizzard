@@ -1,14 +1,26 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [],
   server: {
     port: 3000,
     proxy: {
-      '/wizard': 'http://localhost:4004',
-      '/odata':  'http://localhost:4004',
-      '/health': 'http://localhost:4004'
+      '/wizard': {
+        target: 'http://localhost:4004',
+        changeOrigin: true,
+      },
+      '/odata': {
+        target: 'http://localhost:4004',
+        changeOrigin: true,
+      },
+      '/health': {
+        target: 'http://localhost:4004',
+        changeOrigin: true,
+      },
+      '/flex': {
+        target: 'http://localhost:4004',
+        changeOrigin: true,
+      },
     }
   },
   build: {

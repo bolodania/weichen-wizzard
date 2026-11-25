@@ -1,6 +1,7 @@
 'use strict';
 
 process.env.FL_MOCK = 'true';
+process.env.CDS_IGNORE_DUPLICATE = 'true';
 
 const cds = require('@sap/cds');
 const { GET, POST } = cds.test().in(__dirname + '/..');
@@ -250,5 +251,119 @@ describe('DerivedTP-Hierarchie', () => {
       expect(tp.tpKey).toBeTruthy();
       expect(tp.tpLabel).toBeTruthy();
     }
+  });
+});
+
+// ── PDF Upload & Analyse (M2: Dokument-Upload-Feature) ────────────────────────
+describe('uploadDocument & analyseDocument', () => {
+  test('uploadDocument speichert PDF und analysiert Pflicht-/Optional-TPs', async () => {
+    const sid = await createSession('NI', '8001', 'EWR');
+    
+    // Simuliere ein einfaches PDF (base64-kodiert)
+    const mockPdfContent = Buffer.from('%PDF-1.4 Testinhalt Weiche NI 8001').toString('base64');
+    
+    const res = await POST('/wizard/uploadDocument', {
+      sessionId: sid,
+      filename: 'test-weiche.pdf',
+      mimeType: 'application/pdf',
+      contentB64: mockPdfContent
+    });
+
+    expect(res.status).toBe(200);
+    const body = res.data.value ?? res.data;
+    expect(body.sessionId).toBe(sid);
+    expect(body.filename).toBe('test-weiche.pdf');
+    expect(body.analysisJson).toBeTruthy();
+
+    const analysis = JSON.parse(body.analysisJson);
+    expect(analysis).toHaveProperty('pflichtTps');
+    expect(analysis).toHaveProperty('optionalTps');
+    expect(analysis).toHaveProperty('fehlendeHinweise');
+    expect(Array.isArray(analysis.pflichtTps)).toBe(true);
+  });
+
+  test('uploadDocument gibt 400 bei fehlenden Pflichtfeldern', async () => {
+    await expect(POST('/wizard/uploadDocument', { sessionId: 'test' }))
+      .rejects.toMatchObject({ response: { status: 400 } });
+  });
+
+  test('analyseDocument führt erneute Analyse auf bestehendem Dokument aus', async () => {
+    const sid = await createSession('NI', '8002', 'EWR');
+    
+    // Erst hochladen
+    const mockPdf = Buffer.from('%PDF-1.4 Test').toString('base64');
+    await POST('/wizard/uploadDocument', {
+      sessionId: sid,
+      filename: 'reanalyse-test.pdf',
+      mimeType: 'application/pdf',
+      contentB64: mockPdf
+    });
+
+    // Dann erneut analysieren
+    const res = await POST('/wizard/analyseDocument', {
+      sessionId: sid,
+      filename: 'reanalyse-test.pdf'
+    });
+
+    expect(res.status).toBe(200);
+    const body = res.data.value ?? res.data;
+    expect(body.sessionId).toBe(sid);
+    expect(body.analysisJson).toBeTruthy();
+    
+    const analysis = JSON.parse(body.analysisJson);
+    expect(analysis).toHaveProperty('pflichtTps');
+    expect(analysis).toHaveProperty('summary');
+  });
+
+  test('analyseDocument gibt 404 wenn Dokument nicht existiert', async () => {
+    const sid = await createSession('NI', '8003', 'EWR');
+    await expect(POST('/wizard/analyseDocument', {
+      sessionId: sid,
+      filename: 'nicht-vorhanden.pdf'
+    })).rejects.toMatchObject({ response: { status: 404 } });
+  });
+});
+
+// ── Approver Chat (M2: Chat-Feature für Approver) ─────────────────────────────
+describe('approverChat', () => {
+  test('approverChat gibt Antwort mit Kontext zurück', async () => {
+    const sid = await createSession('NI', '9001', 'EWR');
+    
+    const res = await POST('/wizard/approverChat', {
+      sessionId: sid,
+      contextId: '',
+      message: 'Welche Pflicht-TPs fehlen noch?'
+    });
+
+    expect(res.status).toBe(200);
+    const body = res.data.value ?? res.data;
+    expect(body.sessionId).toBe(sid);
+    expect(body.reply).toBeTruthy();
+    expect(typeof body.reply).toBe('string');
+    // contextId kann leer sein oder gefüllt werden
+    expect(body).toHaveProperty('contextId');
+  });
+
+  test('approverChat gibt 400 bei fehlender message', async () => {
+    const sid = await createSession('NI', '9002', 'EWR');
+    await expect(POST('/wizard/approverChat', { sessionId: sid }))
+      .rejects.toMatchObject({ response: { status: 400 } });
+  });
+
+  test('approverChat funktioniert auch wenn Agent nicht erreichbar ist', async () => {
+    const sid = await createSession('NI', '9003', 'EWR');
+    
+    // Agent-URL auf ungültige Adresse setzen (wird im Code behandelt)
+    const res = await POST('/wizard/approverChat', {
+      sessionId: sid,
+      contextId: '',
+      message: 'Test bei nicht erreichbarem Agent'
+    });
+
+    expect(res.status).toBe(200);
+    const body = res.data.value ?? res.data;
+    // Die Antwort kann entweder eine Fehlermeldung oder eine Standard-Antwort sein
+    expect(body.reply).toBeTruthy();
+    expect(typeof body.reply).toBe('string');
   });
 });

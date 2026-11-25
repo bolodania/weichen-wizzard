@@ -607,4 +607,224 @@ module.exports = (srv) => {
     if (!session) return req.error(404, `Session ${sessionId} nicht gefunden`);
     return JSON.stringify(_computeOpenHints(session));
   });
+
+  // ── Upload Document ───────────────────────────────────────────────────────
+  srv.on('uploadDocument', async (req) => {
+    const { sessionId, filename, mimeType, contentB64 } = req.data;
+    if (!sessionId || !filename || !contentB64) {
+      return req.error(400, 'sessionId, filename und contentB64 sind Pflichtfelder');
+    }
+
+    const db = await cds.connect.to('db');
+
+    // Decode base64 → Buffer
+    const content = Buffer.from(contentB64, 'base64');
+    const uploadedAt = new Date().toISOString();
+
+    // Best-effort text extraction: try pdftotext (poppler), fall back to raw string scan
+    let extractedText = '';
+    try {
+      const { execSync } = require('child_process');
+      const tmp = require('os').tmpdir();
+      const fs = require('fs');
+      const tmpIn = `${tmp}/tp-doc-${Date.now()}.pdf`;
+      fs.writeFileSync(tmpIn, content);
+      extractedText = execSync(`pdftotext "${tmpIn}" -`, { timeout: 10000 }).toString();
+      fs.unlinkSync(tmpIn);
+    } catch (_) {
+      // pdftotext not available — use raw text extraction as fallback
+      extractedText = content.toString('latin1').replace(/[^\x20-\x7E\n\r\t\u00C0-\u00FF]/g, ' ');
+    }
+
+    // Run rule-based analysis
+    const katalog = await ladeKatalog();
+    const session = await _getSession(sessionId);
+    const analysisJson = session
+      ? JSON.stringify(_analyseDocument(katalog, session, extractedText))
+      : JSON.stringify({ error: 'Session nicht gefunden' });
+
+    // Persist document
+    await db.run(
+      UPSERT.into('tp.wizard.SessionDocument').entries({
+        sessionId,
+        filename,
+        mimeType: mimeType || 'application/pdf',
+        content,
+        uploadedAt,
+        extractedText,
+        analysisJson,
+        analysisDoneAt: new Date().toISOString(),
+      }),
+    );
+
+    LOG.info(`[M2.achieved]: Dokument hochgeladen und analysiert: ${filename} für Session ${sessionId}`);
+    return { sessionId, filename, analysisJson };
+  });
+
+  // ── Analyse Document (re-run analysis on existing document) ──────────────
+  srv.on('analyseDocument', async (req) => {
+    const { sessionId, filename } = req.data;
+    const db = await cds.connect.to('db');
+
+    const doc = await db.run(
+      SELECT.one.from('tp.wizard.SessionDocument').where({ sessionId, filename }),
+    );
+    if (!doc) return req.error(404, `Dokument "${filename}" für Session ${sessionId} nicht gefunden`);
+
+    const katalog = await ladeKatalog();
+    const session = await _getSession(sessionId);
+    const analysisJson = session
+      ? JSON.stringify(_analyseDocument(katalog, session, doc.extractedText || ''))
+      : JSON.stringify({ error: 'Session nicht gefunden' });
+
+    await db.run(
+      UPDATE('tp.wizard.SessionDocument')
+        .set({ analysisJson, analysisDoneAt: new Date().toISOString() })
+        .where({ sessionId, filename }),
+    );
+
+    return { sessionId, analysisJson };
+  });
+
+  // ── Approver Chat (proxy to Python A2A agent) ─────────────────────────────
+  srv.on('approverChat', async (req) => {
+    const { sessionId, contextId, message } = req.data;
+    if (!sessionId || !message) return req.error(400, 'sessionId und message sind Pflichtfelder');
+
+    const agentUrl = process.env.AGENT_URL || 'http://localhost:5000';
+
+    // Build a context-enriched message: prepend session summary so the agent
+    // knows which session Thomas is looking at.
+    const db = await cds.connect.to('db');
+    const session = await _getSession(sessionId);
+    let sessionCtx = '';
+    if (session) {
+      const docRow = await db.run(
+        SELECT.one(['analysisJson']).from('tp.wizard.SessionDocument').where({ sessionId }).orderBy({ uploadedAt: 'desc' }),
+      );
+      const analysis = docRow?.analysisJson ? JSON.parse(docRow.analysisJson) : null;
+      sessionCtx =
+        `[Kontext: Thomas-Chat für Session ${session.ds100} Weiche ${session.switchNumber} (${session.basicForm}), ` +
+        `Status: ${session.status}, TPs: ${session.derivedTPCount ?? '?'}` +
+        (analysis ? `, Analyse: ${analysis.summary ?? JSON.stringify(analysis).slice(0, 200)}` : '') +
+        `] `;
+    }
+
+    const body = {
+      jsonrpc: '2.0',
+      method: 'message/send',
+      id: Date.now(),
+      params: {
+        message: {
+          kind: 'message',
+          messageId: require('crypto').randomUUID(),
+          role: 'user',
+          parts: [{ kind: 'text', text: sessionCtx + message }],
+          ...(contextId ? { contextId } : {}),
+        },
+      },
+    };
+
+    let reply = '';
+    let newContextId = contextId || '';
+    try {
+      const http = require('http');
+      const payload = JSON.stringify(body);
+      const agentReply = await new Promise((resolve, reject) => {
+        const urlObj = new URL(agentUrl);
+        const options = {
+          hostname: urlObj.hostname,
+          port: urlObj.port || 80,
+          path: urlObj.pathname || '/',
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+        };
+        const r = http.request(options, (res) => {
+          let data = '';
+          res.on('data', (chunk) => { data += chunk; });
+          res.on('end', () => resolve(data));
+        });
+        r.on('error', reject);
+        r.write(payload);
+        r.end();
+      });
+      const parsed = JSON.parse(agentReply);
+      reply =
+        parsed.result?.artifacts?.[0]?.parts?.[0]?.text ??
+        parsed.result?.status?.message?.parts?.[0]?.text ??
+        'Keine Antwort vom Agenten';
+      newContextId = parsed.result?.contextId || contextId || '';
+    } catch (err) {
+      LOG.warn(`Agent nicht erreichbar: ${err.message}`);
+      reply = `Agent nicht erreichbar (${err.message}). Bitte stellen Sie sicher, dass der Python-Agent läuft.`;
+    }
+
+    return { sessionId, contextId: newContextId, reply };
+  });
 };
+
+// ── Regelwerk-Analyse eines Dokuments ─────────────────────────────────────────
+function _analyseDocument(katalog, session, extractedText) {
+  const { ableitenTps } = require('./lib/weiche');
+  const { tps, offeneAngaben } = ableitenTps(katalog, session);
+
+  // Alle Pflicht-TPs (Regeln ohne optionale Bedingung) vs. tatsächlich abgeleitete
+  const allePflichtRegeln = katalog.regeln.filter(
+    (r) => r.giltFuer && r.giltFuer.includes(session.basicForm) && !r.hinweis?.toLowerCase().includes('optional'),
+  );
+
+  const abgeleiteteSchluessel = new Set(tps.map((t) => t.muster));
+
+  const pflichtTps = [];
+  const optionalTps = [];
+  const fehlendeHinweise = [];
+
+  for (const regel of allePflichtRegeln) {
+    const abgeleitet = abgeleiteteSchluessel.has(regel.muster);
+    const eintrag = {
+      regelNr: regel.nr,
+      muster: regel.muster,
+      bereich: regel.bereich,
+      abgeleitet,
+    };
+    if (regel.hinweis?.toLowerCase().includes('optional')) {
+      optionalTps.push(eintrag);
+    } else {
+      pflichtTps.push(eintrag);
+      if (!abgeleitet) {
+        fehlendeHinweise.push({
+          regelNr: regel.nr,
+          muster: regel.muster,
+          bereich: regel.bereich,
+          hinweis: regel.hinweis || `Pflicht-TP "${regel.muster}" wurde nicht abgeleitet. Bitte Eingaben prüfen.`,
+        });
+      }
+    }
+  }
+
+  // Prüfe ob Werte aus dem Dokument-Text belegt sind
+  const nichtBelegte = (session.answers || []).filter(
+    (a) => a.herkunft === 'Dokument' && a.beleg && !extractedText.includes(a.beleg),
+  );
+
+  const summary =
+    `${tps.length} TPs abgeleitet, ` +
+    `${fehlendeHinweise.length} Pflicht-TPs fehlen, ` +
+    `${optionalTps.filter((o) => o.abgeleitet).length} optionale TPs vorhanden, ` +
+    `${offeneAngaben.length} offene Angaben, ` +
+    `${nichtBelegte.length} Belege nicht im Dokument gefunden`;
+
+  return {
+    summary,
+    tpsAbgeleitet: tps.length,
+    pflichtTps,
+    optionalTps,
+    fehlendeHinweise,
+    offeneAngaben,
+    nichtBelegteWerte: nichtBelegte.map((a) => ({
+      questionId: a.questionId,
+      answer: a.answer,
+      beleg: a.beleg,
+    })),
+  };
+}

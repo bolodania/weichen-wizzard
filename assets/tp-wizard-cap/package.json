@@ -10,43 +10,62 @@
     "test": "jest --forceExit"
   },
   "dependencies": {
-    "@sap/cds": "^8",
     "@sap-cloud-sdk/http-client": "^3",
+    "@sap/cds": "^10.2.2",
     "express": "^4",
     "sqlite3": "^5",
     "uuid": "^9"
   },
   "devDependencies": {
-    "jest": "^29",
+    "@cap-js/cds-test": "^1.0.2",
     "@types/jest": "^29",
-    "supertest": "^6",
-    "axios": "^1"
+    "axios": "^1",
+    "jest": "^29",
+    "supertest": "^6"
   },
   "jest": {
     "testEnvironment": "node",
-    "testMatch": ["**/test/**/*.test.js"],
+    "testMatch": [
+      "**/test/**/*.test.js"
+    ],
     "coverageDirectory": "coverage",
-    "collectCoverageFrom": ["srv/**/*.js"]
+    "collectCoverageFrom": [
+      "srv/**/*.js"
+    ]
   },
   "cds": {
     "requires": {
       "db": {
         "kind": "sqlite",
-        "credentials": { "url": ":memory:", "journal_mode": "wal" }
+        "credentials": {
+          "url": ":memory:",
+          "journal_mode": "wal"
+        }
       },
       "S4H_FL": {
         "kind": "odata-v2",
         "model": "srv/external/API_FUNCTIONALLOCATION",
-        "credentials": { "destination": "S4H_FL" }
+        "credentials": {
+          "destination": "S4H_FL"
+        }
       },
       "S4H_FLHIER": {
         "kind": "odata-v2",
         "model": "srv/external/FUNCNLLOCSTRUCLIST_0001",
-        "credentials": { "destination": "S4H_FL" }
+        "credentials": {
+          "destination": "S4H_FL"
+        }
       }
     },
-    "server": { "port": 4004 },
-    "roots": ["db/", "srv/", "app/approve/"],
+    "server": {
+      "port": 4004,
+      "exit_on_multi_install": false
+    },
+    "roots": [
+      "db/",
+      "srv/",
+      "app/approve/"
+    ],
     "fiori": {
       "preview": {
         "ui5": {

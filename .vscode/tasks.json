@@ -1,0 +1,29 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CAP Backend",
+      "type": "shell",
+      "command": "FL_MOCK=true cds serve",
+      "options": { "cwd": "${workspaceFolder}/assets/tp-wizard-cap" },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "app-field Vite",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/assets/tp-wizard-cap/app-field" },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Python Agent",
+      "type": "shell",
+      "command": "source venv/bin/activate && source .env && python app/main.py",
+      "options": { "cwd": "${workspaceFolder}/assets/tp-wizard-agent" },
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
+}

@@ -88,8 +88,20 @@
           "options": {
             "settings": {
               "contextPath": "/Sessions",
-              "editMode": "Editable",
-              "navigation": {}
+              "navigation": {},
+              "content": {
+                "body": {
+                  "sections": {
+                    "ApproverAssistSection": {
+                      "template": "tp.wizard.approve.ext.ApproverPanel",
+                      "title": "KI-Assistent & Dokumente",
+                      "position": {
+                        "placement": "End"
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }

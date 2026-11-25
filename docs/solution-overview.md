@@ -133,7 +133,7 @@ Das Herzstück der Lösung. Alle Geschäftslogik liegt hier:
 - **`lib/engine.js`** — reine, deterministische Ableitung aus dem Regelwerk: `ableiten(katalog, kopf, angaben)`. Dreiwert-Logik, Operatoren `EQ NE IN BT GE GT LE LT HAS`, `@angabe`-Verweise, Laufnummern, Eltern-Muster, `N`→Laufnummer. Keine weichenspezifischen Regeln im Code.
 - **`lib/katalog.js`** — lädt den Regelwerk-Katalog (Eingaben/Regeln/Bedingungen/ForlaPlaetze) aus der DB (memoisiert).
 - **`lib/weiche.js`** — Zustand, Wertprüfung, Herkunft/Beleg, Übernahme von Fertigmeldungswerten mit wörtlicher Textstelle, nächste Frage, Vorgaben, Mapping auf `DerivedTP`.
-- **`wizard-service.js`** — OData-Service-Handler für alle Wizard-Endpunkte: `createSession`, `submitAnswer`, `applyDocumentValues`, `getTPPreview`, `submitSession`, `approveSession`.
+- **`wizard-service.js`** — OData-Service-Handler für alle Wizard-Endpunkte: `createSession`, `submitAnswer`, `applyDocumentValues`, `getTPPreview`, `submitSession`, `approveSession`, `uploadDocument`, `analyseDocument`, `approverChat`.
 - **`fl-service.js`** — Integration mit S/4HANA Functional Location API (schreibt die TPs nach SAP).
 
 #### Datenmodell (`assets/tp-wizard-cap/db/schema.cds`)
@@ -144,6 +144,7 @@ Das Herzstück der Lösung. Alle Geschäftslogik liegt hier:
 | `WizardSession` | Eine Weichen-Erfassung (von Öffnen bis SAP-Anlage), inkl. `fertigmeldung` |
 | `SessionAnswer` | Einzelne Antwort mit Quelle (`agent-default`, `katrin-confirmed`, `thomas-edited`), Herkunft und Beleg |
 | `DerivedTP` | Snapshot der abgeleiteten TP-Struktur (Ebene, Elternbezug, Planergruppe) |
+| `SessionDocument` | PDF, das Thomas zu einer Session hochlädt; enthält `extractedText` und `analysisJson` |
 
 #### React Frontend (`assets/tp-wizard-cap/app-field/`)
 - Chat-Interface für Katrin: Fragen werden im Dialog gestellt, Antworten per Text oder Auswahl eingegeben
@@ -154,6 +155,11 @@ Das Herzstück der Lösung. Alle Geschäftslogik liegt hier:
 - List Report: alle eingereichten Sessions mit Status, TP-Anzahl, offenen Agentannahmen
 - Object Page: vollständige Antwortliste pro Session, TP-Vorschau in Tabs, Freigabe-Button
 - Orange-Chip = `AGENT-STANDARD`, Grün-Chip = `BESTÄTIGT`
+- **ApproverPanel** (Custom Extension, `app/approve/webapp/ext/`):
+  - PDF-Upload via `FileUploader` → `uploadDocument` Action → Regelwerk-Analyse wird sofort angezeigt
+  - Analyse-Ergebnis: Pflicht-TPs (✓/✗), optionale TPs, fehlende Hinweise, offene Angaben
+  - Chat-Interface: Thomas kann Fragen an den Python-Agenten stellen (A2A, mit Session-Kontext)
+  - `ApproverPanel.fragment.xml` + `ApproverPanel.controller.js`
 
 #### Python AI Agent (`assets/tp-wizard-agent/`)
 - A2A-konformes Python-Modul (SAP AI SDK, Gemini/GPT)

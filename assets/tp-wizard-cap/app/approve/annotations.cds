@@ -3,6 +3,10 @@ using WizardService from '../../srv/wizard-service';
 // ── Sessions — List Report + Object Page ─────────────────────────────────────
 annotate WizardService.Sessions with @(
 
+  // Disable OData-Draft-Create in List Report — sessions are created via createSession action only
+  UI.CreateHidden: true,
+  UI.DeleteHidden: true,
+
   UI.HeaderInfo: {
     TypeName:       'Einreichung',
     TypeNamePlural: 'Einreichungen',
@@ -57,6 +61,12 @@ annotate WizardService.Sessions with @(
       ID:     'TPStructure',
       Label:  'TP-Struktur',
       Target: 'tps/@UI.LineItem'
+    },
+    {
+      $Type:  'UI.ReferenceFacet',
+      ID:     'Documents',
+      Label:  'Dokumente & Analyse',
+      Target: 'documents/@UI.LineItem'
     }
   ],
 
@@ -151,5 +161,24 @@ annotate WizardService.DerivedTPs with @(
     { $Type: 'UI.DataField', Value: planergruppe,  Label: 'Planergruppe'    },
     { $Type: 'UI.DataField', Value: isAutomatic,   Label: 'Automatisch'     },
     { $Type: 'UI.DataField', Value: parentTpKey,   Label: 'Übergeordnet'    }
+  ]
+);
+
+// ── SessionDocuments — PDF uploads + analysis results ────────────────────────
+annotate WizardService.SessionDocuments with {
+  sessionId      @UI.Hidden;
+  extractedText  @UI.Hidden;
+};
+
+annotate WizardService.SessionDocuments with @(
+  Capabilities.InsertRestrictions: { Insertable: false },
+  Capabilities.UpdateRestrictions: { Updatable:  false },
+  Capabilities.DeleteRestrictions: { Deletable:  false },
+  UI.LineItem: [
+    { $Type: 'UI.DataField', Value: filename,        Label: 'Dateiname'        },
+    { $Type: 'UI.DataField', Value: mimeType,        Label: 'Typ'              },
+    { $Type: 'UI.DataField', Value: uploadedAt,      Label: 'Hochgeladen am'   },
+    { $Type: 'UI.DataField', Value: analysisDoneAt,  Label: 'Analysiert am'    },
+    { $Type: 'UI.DataField', Value: analysisJson,    Label: 'Analyse (JSON)'   }
   ]
 );

@@ -1,0 +1,170 @@
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:l="sap.ui.layout"
+  xmlns:u="sap.ui.unified">
+
+  <VBox class="sapUiMediumMargin">
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- PDF-Upload                                                          -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <Title text="Dokument hochladen &amp; analysieren" level="H3" class="sapUiSmallMarginBottom"/>
+
+    <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+      <u:FileUploader
+        id="pdfUploader"
+        fileType="pdf"
+        mimeType="application/pdf"
+        placeholder="PDF-Datei auswählen..."
+        width="400px"
+        change=".onFileSelected"
+        style="Emphasized"/>
+      <Button
+        id="uploadBtn"
+        text="Hochladen &amp; Analysieren"
+        type="Emphasized"
+        press=".onUploadAndAnalyse"
+        class="sapUiSmallMarginBegin"
+        enabled="{approverPanel>/fileSelected}"/>
+    </HBox>
+
+    <!-- Analysis result panel -->
+    <Panel
+      id="analysisPanel"
+      visible="{= !!${approverPanel>/analysisResult} }"
+      expandable="false"
+      class="sapUiSmallMarginBottom">
+      <headerToolbar>
+        <Toolbar>
+          <Title text="Analyse-Ergebnis" level="H4"/>
+          <ToolbarSpacer/>
+          <ObjectStatus
+            text="{approverPanel>/analysisResult/summary}"
+            state="{= ${approverPanel>/analysisResult/fehlendeHinweise/length} > 0 ? 'Error' : 'Success' }"/>
+        </Toolbar>
+      </headerToolbar>
+      <content>
+        <VBox class="sapUiSmallMargin">
+
+          <!-- Missing mandatory TPs -->
+          <Title
+            text="⚠ Fehlende Pflicht-TPs"
+            level="H5"
+            visible="{= ${approverPanel>/analysisResult/fehlendeHinweise/length} > 0 }"
+            class="sapUiTinyMarginBottom"/>
+          <List
+            visible="{= ${approverPanel>/analysisResult/fehlendeHinweise/length} > 0 }"
+            items="{approverPanel>/analysisResult/fehlendeHinweise}"
+            class="sapUiSmallMarginBottom">
+            <StandardListItem
+              title="{approverPanel>muster}"
+              description="{approverPanel>hinweis}"
+              icon="sap-icon://warning2"
+              iconInset="false"/>
+          </List>
+
+          <!-- Open fields -->
+          <Title
+            text="Offene Pflichtangaben"
+            level="H5"
+            visible="{= ${approverPanel>/analysisResult/offeneAngaben/length} > 0 }"
+            class="sapUiTinyMarginBottom"/>
+          <List
+            visible="{= ${approverPanel>/analysisResult/offeneAngaben/length} > 0 }"
+            items="{approverPanel>/analysisResult/offeneAngaben}"
+            class="sapUiSmallMarginBottom">
+            <StandardListItem
+              title="{approverPanel>questionId}"
+              description="{approverPanel>hint}"
+              icon="sap-icon://question-mark"
+              iconInset="false"/>
+          </List>
+
+          <!-- Optional TPs present -->
+          <Title text="Optionale TPs (erfasst)" level="H5" class="sapUiTinyMarginBottom"/>
+          <List
+            items="{path: 'approverPanel>/analysisResult/optionalTps', filters: [{path: 'abgeleitet', operator: 'EQ', value1: true}]}"
+            noDataText="Keine optionalen TPs erfasst"
+            class="sapUiSmallMarginBottom">
+            <StandardListItem
+              title="{approverPanel>muster}"
+              description="{approverPanel>bereich}"
+              icon="sap-icon://accept"
+              iconInset="false"/>
+          </List>
+
+          <!-- Unverified citations -->
+          <Title
+            text="Belege nicht im Dokument gefunden"
+            level="H5"
+            visible="{= ${approverPanel>/analysisResult/nichtBelegteWerte/length} > 0 }"
+            class="sapUiTinyMarginBottom"/>
+          <List
+            visible="{= ${approverPanel>/analysisResult/nichtBelegteWerte/length} > 0 }"
+            items="{approverPanel>/analysisResult/nichtBelegteWerte}">
+            <StandardListItem
+              title="{approverPanel>questionId}: {approverPanel>answer}"
+              description="Beleg: {approverPanel>beleg}"
+              icon="sap-icon://alert"
+              iconInset="false"/>
+          </List>
+
+        </VBox>
+      </content>
+    </Panel>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- Approver Chat                                                       -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <Title text="KI-Assistent für Thomas" level="H3" class="sapUiMediumMarginTop sapUiSmallMarginBottom"/>
+
+    <Panel expandable="false" class="sapUiSmallMarginBottom" height="420px">
+      <content>
+        <VBox height="100%">
+          <!-- Chat thread -->
+          <ScrollContainer
+            id="chatScroll"
+            height="320px"
+            vertical="true"
+            horizontal="false">
+            <List
+              id="chatList"
+              items="{approverPanel>/chatMessages}"
+              showNoData="false"
+              class="sapUiSmallMargin">
+              <CustomListItem>
+                <VBox class="{= ${approverPanel>role} === 'user' ? 'tpChatUser' : 'tpChatAgent' }">
+                  <Text text="{approverPanel>text}" wrapping="true"/>
+                  <ObjectStatus text="{approverPanel>role}" state="None" class="sapUiTinyMarginTop"/>
+                </VBox>
+              </CustomListItem>
+            </List>
+          </ScrollContainer>
+
+          <!-- Input row -->
+          <HBox alignItems="Center" class="sapUiSmallMargin">
+            <TextArea
+              id="chatInput"
+              placeholder="Frage an den KI-Assistenten..."
+              width="100%"
+              rows="2"
+              growing="false"
+              value="{approverPanel>/chatDraft}"/>
+            <Button
+              text="Senden"
+              type="Emphasized"
+              press=".onChatSend"
+              class="sapUiSmallMarginBegin"
+              enabled="{= !!${approverPanel>/chatDraft} &amp;&amp; !${approverPanel>/chatBusy} }"/>
+            <BusyIndicator
+              size="1rem"
+              visible="{approverPanel>/chatBusy}"
+              class="sapUiSmallMarginBegin"/>
+          </HBox>
+        </VBox>
+      </content>
+    </Panel>
+
+  </VBox>
+</core:FragmentDefinition>

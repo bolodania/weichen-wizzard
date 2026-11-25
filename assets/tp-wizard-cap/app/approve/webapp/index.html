@@ -9,41 +9,72 @@
         // sap.fe.core.AppComponent needs sap.ushell.Container for shell services.
         window.sap = window.sap || {};
         (function() {
+            // jQuery-Deferred-compatible promise (sap.fe uses .fail() on the result)
+            function jqDeferred(value) {
+                var cbs = [], failCbs = [];
+                var obj = {
+                    done:    function(fn) { fn(value); return obj; },
+                    fail:    function()   { return obj; },
+                    always:  function(fn) { fn(value); return obj; },
+                    then:    function(fn) { fn(value); return obj; },
+                    promise: function()   { return obj; }
+                };
+                return obj;
+            }
+            function nativePromise(value) {
+                // Returns both a native Promise AND jQuery-Deferred interface
+                var p = Promise.resolve(value);
+                p.fail   = function() { return p; };
+                p.done   = function(fn) { p.then(fn); return p; };
+                p.always = function(fn) { p.then(fn); return p; };
+                return p;
+            }
+            var emptyAppState = {
+                setData: function() {},
+                save:    function() { return nativePromise(); },
+                getData: function() { return {}; },
+                getKey:  function() { return ""; }
+            };
             function appState() {
                 return {
-                    storeInnerAppStateAsync: function() { return Promise.resolve(""); },
-                    getInnerAppStateData:    function() { return Promise.resolve(null); },
-                    createEmptyAppState: function() {
-                        return { setData: function() {}, save: function() { return Promise.resolve(); },
-                                 getData: function() { return {}; }, getKey: function() { return ""; } };
-                    },
-                    createEmptyAppStateAsync: function() {
-                        return Promise.resolve({ setData: function() {}, save: function() { return Promise.resolve(); },
-                                                 getData: function() { return {}; }, getKey: function() { return ""; } });
-                    }
+                    storeInnerAppStateAsync:  function()  { return nativePromise(""); },
+                    getInnerAppStateData:     function()  { return nativePromise(null); },
+                    createEmptyAppState:      function()  { return emptyAppState; },
+                    createEmptyAppStateAsync: function()  { return nativePromise(emptyAppState); },
+                    getStartupAppState:       function()  { return nativePromise(emptyAppState); }
                 };
             }
             function nav() {
                 return {
-                    toExternal:               function() {},
-                    getSemanticObjectLinks:   function()   { return Promise.resolve([]); },
-                    isIntentSupported:        function(aI) { var r={}; (aI||[]).forEach(function(i){r[i]={supported:false};}); return Promise.resolve(r); },
-                    isNavigationSupported:    function(aI) { return Promise.resolve((aI||[]).map(function(){return{supported:false};})); },
-                    hrefForExternal:          function()   { return "#"; },
-                    registerNavigationFilter: function()   {}
+                    toExternal:               function()    {},
+                    getSemanticObjectLinks:   function()    { return nativePromise([]); },
+                    isIntentSupported:        function(aI)  { var r={}; (aI||[]).forEach(function(i){r[i]={supported:false};}); return nativePromise(r); },
+                    isNavigationSupported:    function(aI)  { return nativePromise((aI||[]).map(function(){return{supported:false};})); },
+                    hrefForExternal:          function()    { return "#"; },
+                    registerNavigationFilter: function()    {},
+                    getStartupAppState:       function()    { return nativePromise(emptyAppState); }
                 };
             }
-            function svc(n) {
-                if (n === "AppState")                   return appState();
-                if (n === "CrossApplicationNavigation") return nav();
-                if (n === "URLParsing") return {
+            function urlParsing() {
+                return {
                     parseShellHash:     function()  { return {}; },
                     splitHash:          function(h) { return { shellPart: "", appSpecificPart: h || "" }; },
                     constructShellHash: function()  { return ""; },
                     getShellHash:       function(s) { var m = (s || window.location.href).match(/#(.*)/); return m ? "#" + m[1] : ""; },
                     getHash:            function(s) { var m = (s || window.location.href).match(/#(.*)/); return m ? m[1] : ""; }
                 };
-                return { registerNavigationFilter: function(){}, toExternal: function(){}, hrefForExternal: function(){ return "#"; } };
+            }
+            function svc(n) {
+                if (n === "AppState")                   return appState();
+                if (n === "CrossApplicationNavigation") return nav();
+                if (n === "URLParsing")                 return urlParsing();
+                // Minimal stub for any other service sap.fe requests
+                return {
+                    registerNavigationFilter: function() {},
+                    toExternal:               function() {},
+                    hrefForExternal:          function() { return "#"; },
+                    getStartupAppState:       function() { return nativePromise(emptyAppState); }
+                };
             }
             window.sap.ushell = {
                 Container: {
@@ -74,6 +105,7 @@
         data-sap-ui-async="true"
         data-sap-ui-preload=""
         data-sap-ui-frameOptions="allow"
+        data-sap-ui-flexibilityServices='[{"connector":"LocalStorageConnector"}]'
     ></script>
     <script>
         sap.ui.require([

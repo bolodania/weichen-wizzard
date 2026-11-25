@@ -136,6 +136,45 @@
             "properties": {},
             "required": []
           }
+        },
+        "analyseDocument": {
+          "description": "Analysiert ein hochgeladenes Dokument für eine Session: prüft Pflicht-TPs, optionale TPs, fehlende Angaben und Belegstellen.",
+          "http_endpoint": "/wizard/analyseDocument",
+          "http_method": "POST",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "sessionId": { "type": "string", "description": "Session-ID" },
+              "filename":  { "type": "string", "description": "Dateiname des hochgeladenen Dokuments" }
+            },
+            "required": ["sessionId", "filename"]
+          }
+        },
+        "editAnswer": {
+          "description": "Ändert eine Antwort in einer Session (nur im Status submitted/editing). Gibt die aktualisierte TP-Vorschau zurück.",
+          "http_endpoint": "/wizard/editAnswer",
+          "http_method": "POST",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "sessionId":  { "type": "string", "description": "Session-ID" },
+              "questionId": { "type": "string", "description": "ID der Frage/Eingabe" },
+              "answer":     { "type": "string", "description": "Neuer Wert" }
+            },
+            "required": ["sessionId", "questionId", "answer"]
+          }
+        },
+        "getOpenFields": {
+          "description": "Gibt alle offenen Pflichtangaben zurück, die für die TP-Ableitung fehlen.",
+          "http_endpoint": "/wizard/getOpenFields(sessionId='{sessionId}')",
+          "http_method": "GET",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "sessionId": { "type": "string", "description": "Session-ID" }
+            },
+            "required": ["sessionId"]
+          }
         }
       }
     }
