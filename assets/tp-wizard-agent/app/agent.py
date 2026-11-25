@@ -20,7 +20,7 @@ from litellm.exceptions import (
 from sap_cloud_sdk.agent_decorators import agent_config, agent_model, prompt_section
 from sap_cloud_sdk.agent_memory.factory.langgraph_checkpoint import create_checkpointer
 from circuit_breaker import CircuitBreaker
-from mcp_providers.agw import get_user_sub
+from mcp_providers.cap import get_user_sub
 
 logger = logging.getLogger(__name__)
 

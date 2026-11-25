@@ -15,18 +15,17 @@ from sap_cloud_sdk import bootstrap
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from agent_executor import AgentExecutor
-from mcp_providers.agw import set_user_token, reset_user_token
+from mcp_providers.cap import set_user_token, reset_user_token
 from xsuaa_auth import XsuaaMiddleware, enabled, credentials
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", "5000"))
 
 
 @click.command()
-@click.option("--host", default=HOST)
+@click.option("--host", default="0.0.0.0")
 @click.option("--port", default=PORT)
 def main(host: str, port: int):
     if enabled():

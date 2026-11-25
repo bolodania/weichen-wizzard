@@ -1,20 +1,4 @@
-"""MCP tool provider — uses the Agent Gateway module for tool discovery and invocation.
-
-Exposes `async def get_mcp_tools() -> list[BaseTool]` which discovers MCP tools
-via the Agent Gateway module and converts them to LangChain tools.
-
-Behaviour is controlled by the IBD_TESTING environment variable:
-
-  Production (IBD_TESTING not set):
-      Uses the Agent Gateway SDK client. The user token is read from a per-request
-      context variable set by JWTContextMiddleware in main.py.
-      Tools are fetched per-request (may vary per user).
-
-  Local / test mode (IBD_TESTING=1):
-      Reads mcp-mock.json from the directory containing this file's grandparent
-      (i.e. <asset-root>/mcp-mock.json) and returns LangChain StructuredTool
-      instances built from the mock data — no network calls.
-"""
+"""Direct CAP tools and per-request conversation identity. No Agent Gateway."""
 
 import json
 import logging
@@ -26,24 +10,17 @@ from typing import Any
 from urllib.parse import quote
 
 import httpx
-from xsuaa_auth import cap_headers
+from xsuaa_auth import cap_headers, enabled
 from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import Field, create_model
-from sap_cloud_sdk.agentgateway import create_client
-from sap_cloud_sdk.agentgateway.converters import mcp_tool_to_langchain
-
-from util import call_mcp_tool_with_retry
+from util import minify_json, truncate_response
 
 logger = logging.getLogger(__name__)
 
 # Per-request user token, set by JWTContextMiddleware via set_user_token()
 _user_token_context: ContextVar[str | None] = ContextVar("user_token", default=None)
 
-# mcp-mock.json lives at the agent root (three levels above this file: app/mcp_providers/agw.py)
-_MOCK_FILE = Path(__file__).parent.parent.parent / "mcp-mock.json"
-
-# CAP backend base URL for http_endpoint tool calls in mock mode
-CAP_BASE_URL = os.environ.get("CAP_BASE_URL", "http://localhost:4004")
+_TOOLS_FILE = Path(__file__).parent.parent.parent / "cap-tools.json"
 
 
 def set_user_token(token: str | None) -> Token:
@@ -51,42 +28,15 @@ def set_user_token(token: str | None) -> Token:
     return _user_token_context.set(token)
 
 
-def get_user_token() -> str | None:
-    """Get the user token for the current async context."""
-    return _user_token_context.get()
-
-
-def _get_user_token() -> str:
-    token = _user_token_context.get()
-    assert token is not None, "User token not set in current context"
-    return token
-
-
-def _build_mock_tools() -> list[BaseTool]:
-    """Build LangChain StructuredTool instances from mcp-mock.json.
-
-    Returns an empty list (without error) when mcp-mock.json is absent or
-    cannot be parsed — add/fix the file to enable tool mocking.
-    """
-    if not _MOCK_FILE.exists():
-        return []
-
-    try:
-        mock_data = json.loads(_MOCK_FILE.read_text())
-    except Exception:
-        logger.warning(
-            "Failed to parse mcp-mock.json at %s — returning empty tool list",
-            _MOCK_FILE,
-            exc_info=True,
-        )
-        return []
+def _build_cap_tools() -> list[BaseTool]:
+    """Build HTTP-backed LangChain tools from the checked-in CAP tool catalog."""
+    tool_data = json.loads(_TOOLS_FILE.read_text(encoding="utf-8"))
 
     tools: list[BaseTool] = []
 
-    for _server_slug, server in mock_data.get("servers", {}).items():
+    for _server_slug, server in tool_data.get("servers", {}).items():
         for tool_name, tool_def in server.get("tools", {}).items():
             description = tool_def.get("description", "")
-            mock_response = tool_def.get("mock_response", {})
             input_schema = tool_def.get("input_schema", {})
 
             props = input_schema.get("properties", {})
@@ -136,7 +86,12 @@ def _build_mock_tools() -> list[BaseTool]:
                     for k, v in kwargs.items():
                         if v is not None:
                             endpoint = endpoint.replace(f"{{{k}}}", str(v))
-                    url = f"{CAP_BASE_URL}{endpoint}"
+                    base_url = os.environ.get("CAP_BASE_URL", "")
+                    if not base_url:
+                        if enabled():
+                            raise RuntimeError("CAP_BASE_URL must be configured for cloud tool calls")
+                        base_url = "http://127.0.0.1:4004"
+                    url = f"{base_url.rstrip('/')}{endpoint}"
                     headers = await cap_headers()
                     async with httpx.AsyncClient() as client:
                         if _meth == "GET":
@@ -152,16 +107,11 @@ def _build_mock_tools() -> list[BaseTool]:
                             body = {k: v for k, v in kwargs.items() if v is not None}
                             resp = await client.post(url, json=body, headers=headers, timeout=30.0)
                     resp.raise_for_status()
-                    return resp.text
+                    return truncate_response(minify_json(resp.text))
 
                 coroutine = _http_coroutine
             else:
-                _response = json.dumps(mock_response)
-
-                async def _static_coroutine(_resp: str = _response, **kwargs: Any) -> str:
-                    return _resp
-
-                coroutine = _static_coroutine
+                raise ValueError(f"CAP tool {tool_name} requires an http_endpoint")
 
             tools.append(
                 StructuredTool(
@@ -173,62 +123,30 @@ def _build_mock_tools() -> list[BaseTool]:
                 )
             )
 
-    logger.info("Loaded %d mock MCP tool(s) from %s", len(tools), _MOCK_FILE)
-    return tools
+    logger.info("Loaded %d CAP tools", len(tools))
+    return sorted(tools, key=lambda tool: tool.name)
 
 
-async def get_mcp_tools() -> list[BaseTool]:
-    """Return LangChain-compatible MCP tools.
-
-    In local/test mode (IBD_TESTING=1): returns mock tools from mcp-mock.json.
-    In production: uses Agent Gateway SDK to discover and connect to MCP tools.
-
-    The user token is read from the per-request context var set by JWTContextMiddleware.
-    Tools are fetched per-request since tool listings may vary per user.
-    """
-    if os.environ.get("IBD_TESTING") == "1":
-        return _build_mock_tools()
-
-    agw_client = create_client()
-    mcp_tools = await agw_client.list_mcp_tools(user_token=_get_user_token)
-
-    if not mcp_tools:
-        logger.warning("Agent Gateway returned 0 tools — MCP servers may not be available")
-        return []
-
-    def _make_caller(t: Any):
-        async def call(_tool: Any = None, *, user_token: Any = None, **kwargs: Any) -> str:
-            return await call_mcp_tool_with_retry(
-                agw_client, t, user_token=_get_user_token(), **kwargs
-            )
-        return call
-
-    tools = [
-        mcp_tool_to_langchain(t, _make_caller(t), _get_user_token)
-        for t in mcp_tools
-    ]
-
-    logger.info("Loaded %d MCP tool(s) from Agent Gateway", len(tools))
-    # Sort deterministically so tool order is stable across requests (cache-stability).
-    return sorted(tools, key=lambda t: t.name)
+async def get_cap_tools() -> list[BaseTool]:
+    return _build_cap_tools()
 
 def get_user_sub() -> str:
     """Extract the JWT subject claim from the current request's token.
 
     Decodes the JWT payload (middle segment) without verifying the signature —
-    The platform has already verified it before the request reaches this code.
+    XSUAA middleware has already verified it before the request reaches this code.
 
     Returns:
         The 'sub' claim from the token.
 
     Raises:
         ValueError: If the token is missing or the sub claim cannot be extracted,
-                    unless IBD_TESTING=1, in which case returns 'unknown'.
+                    in cloud deployments. Local conversations use 'local'.
     """
     token = _user_token_context.get()
     if not token:
-        if os.environ.get("IBD_TESTING") == "1":
-            return "unknown"
+        if not enabled():
+            return "local"
         raise ValueError("No user token in context — cannot extract sub claim")
 
     try:

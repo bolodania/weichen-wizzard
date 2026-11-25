@@ -132,7 +132,7 @@ curl -s -X POST http://localhost:4004/wizard/approveSession \
 
 ```bash
 python3 -c "import json; \
-t=json.load(open('assets/tp-wizard-agent/mcp-mock.json'))['servers']['tp-wizard-cap']['tools']; \
+t=json.load(open('assets/tp-wizard-agent/cap-tools.json'))['servers']['tp-wizard-cap']['tools']; \
 assert 'approveSession' not in t and 'confirmSession' not in t, 'FEHLER: Schreibaktion im Agent!'; \
 assert 'applyDocumentValues' in t, 'FEHLER: applyDocumentValues fehlt!'; \
 print('OK — Agent-Tools:', sorted(t))"

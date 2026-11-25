@@ -1,8 +1,6 @@
 """Root conftest.py — fixtures and pytest plugin for the IBD agent test suite.
 
 When copied into /assets/<asset-name> this file:
-  - sets IBD_TESTING=1 so mcp_providers.agw.get_mcp_tools() returns mock tools from
-    mcp-mock.json instead of making real network calls
   - provides shared fixtures used by prebuilt_tests/ (agent path, server lifecycle)
   - registers custom markers
   - collects per-test results and writes test_report.json on session finish
@@ -11,9 +9,6 @@ When copied into /assets/<asset-name> this file:
 from __future__ import annotations
 
 import os
-
-# Set IBD_TESTING before anything else.
-os.environ["IBD_TESTING"] = "1"
 
 import json
 import os
@@ -99,7 +94,7 @@ def start_agent(agent_path: Path):
 
     # Disable the OpenTelemetry SDK in the server subprocess.
     # stderr=None lets the server write directly to the terminal.
-    server_env = {**os.environ, "OTEL_SDK_DISABLED": "true", "IBD_TESTING": "1"}
+    server_env = {**os.environ, "OTEL_SDK_DISABLED": "true"}
 
     process = subprocess.Popen(
         [sys.executable, str(main_file), "--port", str(port)],

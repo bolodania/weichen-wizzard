@@ -15,7 +15,7 @@ from a2a.utils.errors import ServerError
 
 from agent import SampleAgent
 from load_skill_resources import get_load_skill_resource_tool
-from mcp_providers.agw import get_mcp_tools
+from mcp_providers.cap import get_cap_tools
 from prompt_injection_detector import wrap_tool
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class AgentExecutor(A2AAgentExecutor):
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
         """Execute the agent and stream results back via A2A protocol.
 
-        Discovers and loads MCP tools from Agent Gateway before each execution.
+        Loads the direct CAP tools before each execution.
         The user token is read from the context var set by JWTContextMiddleware.
 
         Args:
@@ -49,14 +49,14 @@ class AgentExecutor(A2AAgentExecutor):
         # Load MCP tools — user token is read from context var set by JWTContextMiddleware
         tools = []
         try:
-            tools = await get_mcp_tools()
+            tools = await get_cap_tools()
             if not tools:
-                logger.warning("No tools returned from Agent Gateway")
+                logger.warning("No CAP tools configured")
             else:
                 tool_names = [t.name for t in tools]
                 logger.info("Loaded %d MCP tool(s) for agent execution: %s", len(tools), tool_names)
         except Exception as e:
-            logger.error(f"Failed to load tools from Agent Gateway: {e}")
+            logger.error(f"Failed to load CAP tools: {e}")
 
         tools = [*tools, *self.skill_tools]
 

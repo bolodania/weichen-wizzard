@@ -15,7 +15,7 @@ from starlette.responses import JSONResponse
 
 
 def enabled():
-    return bool(os.environ.get("VCAP_APPLICATION")) or os.environ.get("AUTH_MODE") == "xsuaa"
+    return bool(os.environ.get("VCAP_APPLICATION"))
 
 
 def credentials():

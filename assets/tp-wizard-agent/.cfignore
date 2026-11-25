@@ -24,4 +24,4 @@ prebuilt_tests/
 .git/
 .vscode/
 .DS_Store
-# Retain app/skills/, mcp-mock.json, and requirements.txt.
+# Retain app/skills/, cap-tools.json, and requirements.txt.

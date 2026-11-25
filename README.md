@@ -1,257 +1,123 @@
 # TP Wizard Weiche
 
-KI-gestütztes Erfassungs- und Freigabesystem für Technische Plätze (TPs) von Eisenbahnweichen bei DB InfraGO.
+PoC zur KI-gestützten Erfassung und Prüfung von Technischen Plätzen für Eisenbahnweichen.
+Die TP-Struktur wird deterministisch aus dem Regelwerk abgeleitet, nicht vom LLM.
+Aktuell ist nur **EWR (einfache Weiche rechts)** unterstützt.
 
-## Überblick
+## Aufbau
 
-Neue Weichen müssen als Technische Plätze in SAP angelegt werden. Dieser Prozess erfordert die Beantwortung von bis zu 25 Fragen und die Ableitung einer strukturierten TP-Hierarchie. Der TP Wizard führt zwei Rollen durch diesen Prozess:
-
-| Rolle | Aufgabe | App |
-|---|---|---|
-| **Katrin** (Feldaufnehmerin) | Weichendaten im Feld erfassen, via Chatbot geführt | `app-field` (React + UI5 Web Components) |
-| **Thomas** (Technischer Verantwortlicher) | Einreichungen prüfen, Antworten korrigieren, SAP-Anlage freigeben | `app-approve` (Fiori Elements) |
-
-Katrin kann niemals selbst freigeben. Die SAP-Schreiboperation erfolgt ausschließlich nach expliziter Freigabe durch Thomas.
-
----
-
-## Architektur
-
-```
-Katrin (Feldaufnehmerin)              Thomas (Techn. Verantwortlicher)
-         │                                          │
-    app-field                                 app-approve
-   (React/UI5)                             (Fiori Elements)
-         │                                          │
-    A2A JSON-RPC                             OData V4
-         │                                          │
-         ▼                                          ▼
-  tp-wizard-agent  ──── MCP-Tools ──▶   tp-wizard-cap
- (Python/LangGraph)                    (Node.js / SAP CAP)
-                                              │
-                                              ▼
-                                       SAP S/4HANA (TP-Anlage)
-                                       ← nur nach Thomas' Freigabe
-```
-
-### Assets
-
-```
-assets/
-├── tp-wizard-agent/        Python-Agent (LangGraph + LiteLLM + A2A)
-│   └── app/
-│       ├── agent.py        Haupt-Agent: Fallback-Chain, Circuit Breaker, Summarization
-│       └── skills/
-│           └── weichen-dialog/SKILL.md   Geführter 7-Schritt-Dialog
-│
-└── tp-wizard-cap/          SAP CAP Backend + Frontends
-    ├── db/                 CDS Datenmodell + Seed-Daten
-    │   └── schema.cds      Entities: WizardSession, SessionAnswer, DerivedTP, ForlaTemplate
-    ├── srv/                CAP Service-Handler
-    │   ├── wizard-service.cds
-    │   ├── wizard-service.js
-    │   └── lib/
-    │       ├── engine.js       TP-Ableitungsregelwerk
-    │       ├── katalog.js      Fragenkatalog
-    │       ├── weiche.js       Weichen-Domänenobjekt
-    │       └── smart-defaults.js
-    ├── app-field/          Katrins Chat-App (React + Vite + UI5 Web Components)
-    └── app/
-        └── approve/        Thomas' Freigabe-App (Fiori Elements OData V4)
-```
-
----
-
-## Kernkonzepte
-
-### Zwei-Rollen-Workflow
-
-Der Agent hat ein **ABSOLUTES VERBOT**: Er darf `approveSession` niemals aufrufen. Die SAP-Schreiboperation (`bulkCreateFunctionalLocations`) wird ausschließlich durch Thomas' `approve`-Aktion in der Fiori-App ausgelöst.
-
-### Session-Lebenszyklus
-
-```
-open → (Agent-Dialog) → submitted → (Thomas prüft) → approved → created
-                                 ↘ (Thomas lehnt ab) → editing → submitted
-```
-
-### Antwortquellen (`source`-Feld)
-
-Jede `SessionAnswer` trägt eine Quelle für vollständige Nachvollziehbarkeit:
-
-| Wert | Bedeutung |
+| Verzeichnis | Aufgabe |
 |---|---|
-| `auto` | Automatisch aus Regelwerk abgeleitet |
-| `agent-default` | Standardwert vom Agenten gesetzt (kein Dialog) |
-| `katrin-confirmed` | Katrin hat Wert explizit bestätigt |
-| `katrin-corrected` | Katrin hat Agenten-Vorschlag korrigiert |
-| `thomas-edited` | Thomas hat Antwort nach Einreichung geändert |
+| `assets/tp-wizard-cap` | CAP-APIs, Regelwerk, Felderfassung (React/UI5), Freigabe (Fiori Elements) |
+| `assets/tp-wizard-agent` | Python-A2A-Agent mit LangGraph/LiteLLM; direkte CAP-Werkzeuge aus `cap-tools.json` |
+| `assets/tp-wizard-router` | SAP Approuter für Browser-Anmeldung über XSUAA |
 
-### Schnellerfassung (`bulkSubmitWithDefaults`)
+## Gesamtarchitektur
 
-Wenn Katrin alle verbleibenden Fragen mit Standardwerten übernehmen möchte, setzt diese Aktion alle offenen Felder auf `source: 'agent-default'` und reicht die Session in einem einzigen Aufruf ein — ohne weitere LLM-Roundtrips.
+```text
+Feldaufnahme                              Technischer Verantwortlicher
+    │                                              │
+    └────────────── Browser / XSUAA-Anmeldung ──────┘
+                              │
+                       SAP Approuter
+                              │ HTTPS + Benutzertoken
+                              ▼
+                    CAP-Anwendung (Node.js)
+                    ├─ Felderfassung: React + UI5 Web Components
+                    ├─ Freigabe: Fiori Elements / OData V4
+                    ├─ WizardService: Erfassung, Vorschau, Prüfung
+                    └─ Regelwerk: Katalog → deterministische TP-Hierarchie
+                         │                  ▲
+                 Chat / A2A über HTTPS       │ CAP-Werkzeuge über HTTPS
+                         ▼                  │
+                    Python-Agent ───────────┘
+                    LangGraph + LiteLLM
+                         │
+                         ▼
+                    SAP AI Core → Claude
 
----
+CAP → Destination Service → Connectivity / Cloud Connector → SAP-System
+      ├─ Value Help: konfigurierbarer OData-Service (lesend)
+      └─ TP-Anlage: nach manueller Freigabe, im PoC simuliert
 
-## Deploy the complete solution to BTP Cloud Foundry
+CAP-Daten: SQLite im Speicher — Katalog, Sessions, Antworten, TP-Snapshots
+```
 
-See the [step-by-step CAP + Python deployment README](docs/README-deployment-cf.md)
-for service provisioning, both manifests, AI Core environment configuration,
-XSUAA-protected HTTPS app-to-app connections, Approuter login, and troubleshooting.
-The existing CAP manifest alone does not deploy the Python agent.
+**Ablauf:** Weichendaten erfassen → Antworten speichern → TP-Vorschau ableiten →
+einreichen → prüfen/korrigieren → manuell freigeben. Der Agent unterstützt den
+Dialog; die fachliche Ableitung erfolgt ausschließlich im CAP-Regelwerk.
 
-## Lokales Setup
+Alle drei Anwendungen laufen auf BTP Cloud Foundry. XSUAA schützt Browser- und
+App-Verbindungen; der Agent ruft CAP direkt auf, ohne Agent Gateway.
+Technische Tokens dürfen nicht freigeben. Die Browserrolle `WizardUser` erlaubt
+im PoC sowohl Erfassung als auch Prüfung; getrennte Benutzerrollen sind noch offen.
+Für Internet-Destinations entfällt der Cloud Connector.
 
-### Voraussetzungen
+## Deployment auf BTP Cloud Foundry
 
-| Tool | Version |
-|---|---|
-| Node.js | ≥ 22.12 |
-| `@sap/cds-dk` | ≥ 8 (global) |
-| Python | ≥ 3.11 |
-| pip / venv | aktuell |
+Siehe [Schritt-für-Schritt-Anleitung](docs/README-deployment-cf.md): Services anlegen,
+drei Apps mit `cf push` deployen, URLs verbinden, Kundendestination und AI Core
+konfigurieren sowie Benutzerrollen zuweisen. Der Destination-Name ist nicht vorbelegt;
+API-Pfad, EntitySet und Feldzuordnung sind konfigurierbar.
+
+## Lokal starten
+
+Voraussetzungen: Node.js ≥22.12, CAP-CLI (`@sap/cds-dk`), Python 3.12.
 
 ```bash
-npm install -g @sap/cds-dk
-```
-
-### CAP Backend + Frontends starten
-
-```bash
+# CAP: aus dem Repository-Hauptverzeichnis
 cd assets/tp-wizard-cap
-npm install
-FL_MOCK=true npm run dev  # CAP auf http://localhost:4004, SAP-Anlage simuliert
+npm ci
+npm run build
+FL_MOCK=true npm start
 ```
 
-```bash
-cd assets/tp-wizard-cap/app-field
-npm install
-npm run dev        # Katrins Chat-App auf http://localhost:5173
-```
-
-### Python-Agent starten
+Oberflächen: `http://localhost:4004/field/` und
+`http://localhost:4004/approve/webapp/index.html`.
+Die lokale Entwicklung verwendet Mock-Authentifizierung, nicht BTP-Login.
 
 ```bash
+# Agent: zweites Terminal, aus dem Repository-Hauptverzeichnis
 cd assets/tp-wizard-agent
-python -m venv .venv && source .venv/bin/activate
+python3.12 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-
-# Umgebungsvariablen (Beispiel):
-export AICORE_BASE_URL=https://...
-export AICORE_CLIENT_ID=...
-export AICORE_CLIENT_SECRET=...
-
-python -m app   # Agent auf http://localhost:8000
+source .env
+python -u app/main.py --host 127.0.0.1 --port 5000
 ```
 
-### Umgebungsvariablen
+Die `.env` benötigt `AICORE_CLIENT_ID`, `AICORE_CLIENT_SECRET`, `AICORE_AUTH_URL`
+und `AICORE_BASE_URL`. Ressourcengruppe nur ändern, wenn nicht `default`.
+Lokaler CAP-Standard: `http://127.0.0.1:4004`. Modelle: Claude Sonnet 4.5 für Chat,
+Haiku 4.5 für Zusammenfassungen. Keine Secrets einchecken oder ins Frontend kopieren.
 
-| Variable | Beschreibung |
-|---|---|
-| `AICORE_BASE_URL` | SAP AI Core API-Endpunkt |
-| `AICORE_CLIENT_ID` | Service-Key Client-ID |
-| `AICORE_CLIENT_SECRET` | Service-Key Client-Secret |
-| `AICORE_TOKEN_URL` | OAuth Token-Endpunkt |
-| `AGENT_INJECTION_RESISTANCE` | Optionale Zusatzinstruktionen gegen Prompt-Injection |
-| `SAP_DESTINATION_*` | Credentials für S/4HANA Destination (Produktion) |
-
-Niemals Credentials in den Code oder in dieses Repository einchecken. `.env`-Dateien sind via `.gitignore` ausgeschlossen.
-
----
-
-## Tests ausführen
-
-### CAP (Jest)
+## Tests
 
 ```bash
-cd assets/tp-wizard-cap
-npm test
+# Im CAP-Ordner
+npm test -- --runInBand
+
+# Im Agent-Ordner mit aktiviertem venv
+python -m unittest discover -s tests -p test_cap_tools.py -v
+python -m unittest discover -s tests -p test_xsuaa_auth.py -v
 ```
 
-### Python-Agent (pytest)
+Referenzfälle: NI/2006 → 25 TPs, NRB/806 → 110 TPs.
 
-```bash
-cd assets/tp-wizard-agent
-source .venv/bin/activate
-pytest
-```
+## PoC-Grenzen
 
----
+- Eine Instanz je App; SQLite/Gespräche liegen im Speicher. Neustarts verlieren Daten.
+- `FL_MOCK=true` simuliert SAP-TP-Anlage; Destination-/LLM-Abfragen sind echt.
+- Offene Pflichtangaben oder leere TP-Strukturen verhindern die Freigabe.
+- Datensatzberechtigungen, getrennte Browserrollen und echter SAP-Schreibzugriff sind noch nicht vollständig umgesetzt.
+- Business Partner sind eine technische Value-Help-Beispielquelle, keine DS100-Betriebsstellen.
 
-## Branches
+## Dokumentation
 
-| Branch | Inhalt |
-|---|---|
-| `main` | Stabiler Stand |
-| `feature/two-role-workflow` | Zwei-Rollen-Workflow (Katrin / Thomas) |
-| `regelwerk-ewr` | Datengetriebenes TP-Ableitungsregelwerk aus EWR-Daten |
-
----
-
-## Datenmodell (Kurzübersicht)
-
-```
-WizardSession (UUID)
-  ├── status: open | submitted | editing | approved | created | failed
-  ├── answers: SessionAnswer[]
-  │     └── source: auto | agent-default | katrin-confirmed | katrin-corrected | thomas-edited
-  └── tps: DerivedTP[]
-        └── level / parentTpKey (Hierarchie per Präfix-Matching)
-
-ForlaTemplate    — Maximalausprägung aller möglichen TPs je Weichentyp
-BasicFormMapping — Grundbauform → gültige Positionsnummernbereiche
-```
-
----
-
-## CAP Service-Endpunkte
-
-Basis-URL lokal: `http://localhost:4004/wizard`
-
-| Methode | Endpunkt | Aufrufer | Beschreibung |
-|---|---|---|---|
-| POST | `/createSession` | Frontend / Agent | Neue Session anlegen |
-| POST | `/submitAnswer` | Agent | Einzelne Antwort speichern |
-| POST | `/bulkSubmitWithDefaults` | Agent | Alle offenen Fragen mit Defaults setzen + einreichen |
-| POST | `/submitSession` | Agent | Session zur Freigabe einreichen |
-| POST | `/Sessions({id})/approve` | Thomas (Fiori) | SAP-Anlage auslösen |
-| GET | `/getNextQuestion` | Agent | Nächste offene Frage abfragen |
-| GET | `/getTPPreview` | Frontend | Aktuelle TP-Hierarchie abrufen |
-| GET | `/getSmartDefaults` | Agent | Standardwerte für Grundbauform |
-| GET | `/listPendingSessions` | Agent / Thomas | Offene Einreichungen auflisten |
-| GET | `/health` | Monitoring | Verfügbarkeitsprüfung |
-
----
-
-## Agent-Konfiguration
-
-Der Agent (`assets/tp-wizard-agent/app/agent.py`) ist über SAP AI Core konfigurierbar:
-
-| Parameter | Standard | Beschreibung |
-|---|---|---|
-| `config.model` | `sap/anthropic--claude-4.5-sonnet` | Primäres LLM |
-| `config.fallback_models` | leer | Komma-getrennte Fallback-Modelle |
-| `config.circuit_breaker.failure_threshold` | 3 | Fehler bis Circuit Breaker öffnet |
-| `config.circuit_breaker.cooldown_seconds` | 120 | Cooldown-Zeit in Sekunden |
-| `config.temperature` | 0.0 | LLM-Temperatur |
-| `config.summarization.trigger_tokens` | 30 000 | Token-Schwelle für Gesprächs-Komprimierung |
-| `config.summarization.model` | `sap/anthropic--claude-4.5-haiku` | Modell für Komprimierung |
-
----
-
-## UI-Mockups
-
-Interaktive HTML-Mockups (Fiori Horizon) liegen unter `docs/mockups/` und werden lokal generiert:
-
-```bash
-cd /tmp/tp-mockups-scratch   # oder lokal ablegen
-node generator.js
-# → docs/mockups/index.html öffnen
-```
-
-Die generierten Dateien sind aus `.gitignore` ausgeschlossen (reproduzierbar).
-
----
+- [CAP-Service](assets/tp-wizard-cap/README.md)
+- [Python-Agent](assets/tp-wizard-agent/README.md)
+- [Regelwerk](docs/regelwerk-ewr.md)
+- [Testabläufe](docs/test-scenarios.md)
 
 ## Lizenz
 

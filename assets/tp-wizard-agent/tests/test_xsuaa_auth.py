@@ -14,7 +14,7 @@ from starlette.routing import Route
 from starlette.testclient import TestClient
 
 BINDING = {"clientid": "client", "clientsecret": "secret", "url": "https://auth.example", "xsappname": "wizard"}
-ENV = {"AUTH_MODE": "xsuaa", "CAP_BASE_URL": "https://cap.example",
+ENV = {"VCAP_APPLICATION": "{}", "CAP_BASE_URL": "https://cap.example",
        "VCAP_SERVICES": json.dumps({"xsuaa": [{"label": "xsuaa", "credentials": BINDING}]})}
 
 

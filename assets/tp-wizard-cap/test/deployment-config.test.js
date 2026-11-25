@@ -31,7 +31,10 @@ describe('XSUAA HTTPS Cloud Foundry PoC configuration', () => {
     for (const manifest of [app, agent, router]) {
       expect(JSON.stringify(manifest)).not.toContain('((');
     }
-    expect(agent.env.AUTH_MODE).toBe('xsuaa');
+    expect(agent.command).toBe('python -u app/main.py');
+    for (const variable of ['HOST', 'PYTHONUNBUFFERED', 'IBD_TESTING', 'AUTH_MODE']) {
+      expect(agent.env).not.toHaveProperty(variable);
+    }
     const security = JSON.parse(fs.readFileSync(path.join(root, '../../xs-security.json'), 'utf8'));
     expect(security.authorities).not.toContain('$XSAPPNAME.WizardUser');
     expect(security.authorities).toEqual(['$XSAPPNAME.CAPTools', '$XSAPPNAME.AgentInvoke']);

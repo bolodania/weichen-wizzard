@@ -9,7 +9,7 @@ import os
 
 BASE = os.path.join(os.path.dirname(__file__), "..")
 SKILL = os.path.join(BASE, "app", "skills", "weichen-dialog", "SKILL.md")
-MCP = os.path.join(BASE, "mcp-mock.json")
+MCP = os.path.join(BASE, "cap-tools.json")
 
 
 def test_skill_requires_citation_for_document_values():
