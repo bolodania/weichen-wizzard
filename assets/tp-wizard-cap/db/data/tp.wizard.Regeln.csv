@@ -1,0 +1,100 @@
+nr;bereich;muster;eltern;anzahl;start;giltFuer;beleg;hinweis
+1;Weiche;;–;1;1;EWR;00002;"3. Ebene; Schlüssel aus Betriebsstelle und Weichennummer"
+10;Stränge;STR-A;;1;1;EWR;00035;
+11;Stränge;STR-B;;1;1;EWR;00036;
+12;Schwellen;SW---;;1;1;EWR;00034;
+20;Zungenvorrichtung;ZUBA-;;1;1;EWR;00061;Bedingung „Zgv-Bauart ≠ OHN“ ist bei neuen EW immer erfüllt
+21;Zungenvorrichtung;ZUBA-ZGV-L;ZUBA-;1;1;EWR;00100;
+22;Zungenvorrichtung;ZUBA-ZGV-R;ZUBA-;1;1;EWR;00101;
+23;Zungenvorrichtung;ZUBA-VE-##;ZUBA-;zgv_ve;1;EWR;00069–00070;"Ebene 01 = Einzelverschluss, ab 02 Mehrfachverschluss; der WK-Verschlusstyp wird nicht gebraucht"
+24;Zungenvorrichtung;ZUBA-VE-##VSLL;ZUBA-VE-##;1;1;EWR;00072;je Verschlussebene
+25;Zungenvorrichtung;ZUBA-VE-##VSLR;ZUBA-VE-##;1;1;EWR;00073;je Verschlussebene
+26;Zungenvorrichtung;ZUBA-VE-##VSFA;ZUBA-VE-##;1;1;EWR;00071;je Verschlussebene
+27;Zungenvorrichtung;ZUBA-FWIP#;ZUBA-;1;1;EWR;00062;
+28;Zungenvorrichtung;ZUBA-RHS-#;ZUBA-;1;1;EWR;00063–00064;
+29;Zungenvorrichtung;ZUBA-RI--#;ZUBA-;1;1;EWR;00065–00068;
+30;Zungenvorrichtung;ZUBA-ZP-##;ZUBA-;zgv_zp;1;EWR;00102–00103;
+31;Zungenvorrichtung;ZUBA-ZP-##VSFA;ZUBA-ZP-##;1;1;EWR;00104–00105;je Zungenprüfkontakt
+32;Zungenvorrichtung;ZUBA-ZPR##;ZUBA-;zgv_zpr;1;EWR;00106;
+33;Zungenvorrichtung;ZUBA-ZR-##;ZUBA-;zgv_zr;1;EWR;00107;
+34;Zungenvorrichtung;ZUBA-HV-##;ZUBA-;zgv_hv;1;EWR;FK Z22;keine Migrationsregel
+35;Zungenvorrichtung;ZUBA-DV-##;ZUBA-;zgv_dv;1;EWR;FK Z23;keine Migrationsregel
+40;Antrieb;ZUBA-WA-##;ZUBA-;zgv_wa;1;EWR;00074–00093;Migration: je Antrieb mit Position ZV01…ZV20
+41;Antrieb;ZUBA-WA-##UEG-;ZUBA-WA-##;1;1;EWR;00097;"je Antrieb; Kundenliste: nur wenn Anzahl Verschlüsse > Anzahl Antriebe (abgeleitet zgv_ueg)"
+42;Antrieb;ZUBA-WA-##PRSS;ZUBA-WA-##;1;1;EWR;00096;"je Antrieb; Kundenliste: optional"
+43;Antrieb;ZUBA-WA-##ANZ#;ZUBA-WA-##;1;1;EWR;00095;"je Antrieb, nur hydraulisch; Kundenliste: automatisch"
+44;Antrieb;ZUBA-WA-##USZ#;ZUBA-WA-##;1;1;EWR;00098;"je Antrieb, nur hydraulisch; Kundenliste: automatisch"
+45;Antrieb;ZUBA-WA-##VBL-;ZUBA-WA-##;1;1;EWR;00099;"je Antrieb, nur hydraulisch; Kundenliste: automatisch"
+50;Herzstück;HZ-AB;;1;1;EWR;00010;
+51;Herzstück;HZ-ABHZ---;HZ-AB;1;1;EWR;00011;Kundenliste: automatisch (vorher nicht bei Hz-Bauart 4)
+52;Herzstück;HZ-ABNH--#;HZ-AB;hz_nh;1;EWR;00012;
+53;Herzstück;HZ-ABVE--#;HZ-AB;hz_ve;1;EWR;00016–00017;Ebene 1 Einzelverschluss, ab 2 Mehrfachverschluss
+54;Herzstück;HZ-ABVE--#VSLL;HZ-ABVE--#;1;1;EWR;00019;je Verschlussebene
+55;Herzstück;HZ-ABVE--#VSLR;HZ-ABVE--#;1;1;EWR;00020;je Verschlussebene
+56;Herzstück;HZ-ABVE--#VSFA;HZ-ABVE--#;1;1;EWR;00018;je Verschlussebene
+57;Herzstück;HZ-ABZR-##;HZ-AB;hz_zr;1;EWR;00032;
+58;Herzstück;HZ-ABHV-##;HZ-AB;hz_hv;1;EWR;FK Z33;keine Migrationsregel
+59;Antrieb;HZ-ABWA-##;HZ-AB;hz_wa;1;EWR;00021–00030;Migration: je Antrieb mit Position HZ01…HZ10
+60;Antrieb;HZ-ABWA-##UEG-;HZ-ABWA-##;1;1;EWR;00031;"je Antrieb; Kundenliste: nur wenn Anzahl Verschlüsse > Anzahl Antriebe (abgeleitet hz_ueg)"
+61;Antrieb;HZ-ABWA-##ANZ#;HZ-ABWA-##;1;1;EWR;FK Z46;"je Antrieb, nur hydraulisch; Kundenliste: automatisch"
+62;Antrieb;HZ-ABWA-##USZ#;HZ-ABWA-##;1;1;EWR;FK Z47;"je Antrieb, nur hydraulisch; Kundenliste: automatisch"
+63;Antrieb;HZ-ABWA-##VBL-;HZ-ABWA-##;1;1;EWR;FK Z48;"je Antrieb, nur hydraulisch; Kundenliste: automatisch"
+65;Radlenker;HZ-ABRLL--;HZ-AB;1;1;EWR;00013;Kundenliste: automatisch (vorher nur Radlenkerbauart 1–4)
+66;Radlenker;HZ-ABRLR--;HZ-AB;1;1;EWR;00014;Kundenliste: automatisch (vorher nur Radlenkerbauart 1–4)
+67;Radlenker;HZ-ABRSA-#;HZ-AB;rsa;1;EWR;00015;Kundenliste: optional, nur bei beweglichem Herzstück
+70;Zwischenschiene;ZSBA-;;1;1;EWR;00056;
+71;Zwischenschiene;ZSBA-BSRLL;ZSBA-;1;1;EWR;00057;
+72;Zwischenschiene;ZSBA-BSRLR;ZSBA-;1;1;EWR;00058;
+73;Zwischenschiene;ZSBA-ZGHZL;ZSBA-;1;1;EWR;00059;
+74;Zwischenschiene;ZSBA-ZGHZR;ZSBA-;1;1;EWR;00060;
+80;Weichensignal;WSIG#;;wsig;1;EWR;00037–00045;
+81;Weichensignal;WSIG#LP0##;WSIG#;wsig_lp;1;EWR;00046–00054;"je Weichensignal; Migration zählt Lichtpunkte über alle Signale (Klärung)"
+85;Weichensteuerung;SIWES;;1;1;EWR;00033;
+86;Weichenüberwachung;WUE-#;;1;1;EWR;00055;
+90;Erdung;EV---;;1;1;EWR;00009;Kundenliste: automatisch (vorher nur bei elektrifizierter Strecke)
+91;Weichenheizung;EEH##;;1;1;EWR;00003;elektrische Heizung
+92;Weichenheizung;GHE##;;1;1;EWR;00004;
+93;Weichenheizung;ODH##;;1;1;EWR;00005;
+94;Weichenheizung;OUH--;;1;1;EWR;00006;
+95;Weichenheizung;SOELH;;1;1;EWR;00007;
+96;Weichenheizung;SPH##;;1;1;EWR;00008;
+100;Gleisstücke;WGWA-;;1;1;EWR;FK Z92;Migration: Weichenanfang/-ende nicht ermittelbar
+101;Gleisstücke;WGWA-SWAL-;WGWA-;1;1;EWR;FK Z93;
+102;Gleisstücke;WGWA-SWAR-;WGWA-;1;1;EWR;FK Z94;
+103;Gleisstücke;WGESA;;1;1;EWR;FK Z95;
+104;Gleisstücke;WGESASWEL-;WGESA;1;1;EWR;FK Z96;
+105;Gleisstücke;WGESASWER-;WGESA;1;1;EWR;FK Z97;
+106;Gleisstücke;WGESB;;1;1;EWR;FK Z98;
+107;Gleisstücke;WGESBSWEL-;WGESB;1;1;EWR;FK Z99;
+108;Gleisstücke;WGESBSWER-;WGESB;1;1;EWR;FK Z100;
+110;Prellbock;WGWA-PR---;WGWA-;1;1;EWR;FK Z83;
+111;Prellbock;WGESAPR---;WGESA;1;1;EWR;FK Z84;
+112;Prellbock;WGESBPR---;WGESB;1;1;EWR;FK Z85;
+113;Prellbock;WGWA-PR---SH0-;WGWA-PR---;1;1;EWR;FK Z86;
+114;Prellbock;WGESAPR---SH0-;WGESAPR---;1;1;EWR;FK Z87;
+115;Prellbock;WGESBPR---SH0-;WGESBPR---;1;1;EWR;FK Z88;
+116;Prellbock;WGWA-PR---SH2-;WGWA-PR---;1;1;EWR;FK Z89;
+117;Prellbock;WGESAPR---SH2-;WGESAPR---;1;1;EWR;FK Z90;
+118;Prellbock;WGESBPR---SH2-;WGESBPR---;1;1;EWR;FK Z91;
+120;Hemmschuhauswurfvorrichtung;WGWA-SWAL-HAV-;WGWA-SWAL-;1;1;EWR;FK Z75;Migration: Einbauort nicht ermittelbar
+121;Hemmschuhauswurfvorrichtung;WGWA-SWAR-HAV-;WGWA-SWAR-;1;1;EWR;FK Z76;Migration: Einbauort nicht ermittelbar
+122;Hemmschuhauswurfvorrichtung;ZSBA-BSRLLHAV-;ZSBA-BSRLL;1;1;EWR;FK Z77;Migration: Einbauort nicht ermittelbar
+123;Hemmschuhauswurfvorrichtung;ZSBA-BSRLRHAV-;ZSBA-BSRLR;1;1;EWR;FK Z78;Migration: Einbauort nicht ermittelbar
+124;Hemmschuhauswurfvorrichtung;WGESASWEL-HAV-;WGESASWEL-;1;1;EWR;FK Z79;Migration: Einbauort nicht ermittelbar
+125;Hemmschuhauswurfvorrichtung;WGESASWER-HAV-;WGESASWER-;1;1;EWR;FK Z80;Migration: Einbauort nicht ermittelbar
+126;Hemmschuhauswurfvorrichtung;WGESBSWEL-HAV-;WGESBSWEL-;1;1;EWR;FK Z81;Migration: Einbauort nicht ermittelbar
+127;Hemmschuhauswurfvorrichtung;WGESBSWER-HAV-;WGESBSWER-;1;1;EWR;FK Z82;Migration: Einbauort nicht ermittelbar
+130;Isolierstöße;WGWA-SWAL-ISO#;WGWA-SWAL-;1;1;EWR;FK Z61;Migration: Einbauort nicht ermittelbar (ZR3N2WETPMAN)
+131;Isolierstöße;WGWA-SWAR-ISO#;WGWA-SWAR-;1;1;EWR;FK Z62;Migration: Einbauort nicht ermittelbar (ZR3N2WETPMAN)
+132;Isolierstöße;ZUBA-ZGV-LISO#;ZUBA-ZGV-L;1;1;EWR;FK Z63;Migration: Einbauort nicht ermittelbar (ZR3N2WETPMAN)
+133;Isolierstöße;ZUBA-ZGV-RISO#;ZUBA-ZGV-R;1;1;EWR;FK Z64;Migration: Einbauort nicht ermittelbar (ZR3N2WETPMAN)
+134;Isolierstöße;ZSBA-BSRLLISO#;ZSBA-BSRLL;1;1;EWR;FK Z65;Migration: Einbauort nicht ermittelbar (ZR3N2WETPMAN)
+135;Isolierstöße;ZSBA-ZGHZLISO#;ZSBA-ZGHZL;1;1;EWR;FK Z66;Migration: Einbauort nicht ermittelbar (ZR3N2WETPMAN)
+136;Isolierstöße;ZSBA-BSRLRISO#;ZSBA-BSRLR;1;1;EWR;FK Z67;Migration: Einbauort nicht ermittelbar (ZR3N2WETPMAN)
+137;Isolierstöße;ZSBA-ZGHZRISO#;ZSBA-ZGHZR;1;1;EWR;FK Z68;Migration: Einbauort nicht ermittelbar (ZR3N2WETPMAN)
+138;Isolierstöße;HZ-ABRLL--ISO#;HZ-ABRLL--;1;1;EWR;FK Z69;Migration: Einbauort nicht ermittelbar (ZR3N2WETPMAN)
+139;Isolierstöße;HZ-ABRLR--ISO#;HZ-ABRLR--;1;1;EWR;FK Z70;Migration: Einbauort nicht ermittelbar (ZR3N2WETPMAN)
+140;Isolierstöße;WGESASWEL-ISO#;WGESASWEL-;1;1;EWR;FK Z71;Migration: Einbauort nicht ermittelbar (ZR3N2WETPMAN)
+141;Isolierstöße;WGESASWER-ISO#;WGESASWER-;1;1;EWR;FK Z72;Migration: Einbauort nicht ermittelbar (ZR3N2WETPMAN)
+142;Isolierstöße;WGESBSWEL-ISO#;WGESBSWEL-;1;1;EWR;FK Z73;Migration: Einbauort nicht ermittelbar (ZR3N2WETPMAN)
+143;Isolierstöße;WGESBSWER-ISO#;WGESBSWER-;1;1;EWR;FK Z74;Migration: Einbauort nicht ermittelbar (ZR3N2WETPMAN)

@@ -21,7 +21,10 @@ export function TPPreviewSheet({ tps }) {
     <Panel
       headerText={`TP-Vorschau — ${count} Technische Plätze`}
       collapsed
-      style={{ borderTop: '2px solid var(--sapHighlightColor)' }}
+      style={{
+        borderTop: '2px solid var(--sapHighlightColor)',
+        margin: '0 0.75rem 0.75rem',
+      }}
     >
       {count === 0
         ? <Text style={{ padding: '0.75rem 1rem', color: 'var(--sapNeutralColor)' }}>
@@ -44,7 +47,7 @@ export function TPPreviewSheet({ tps }) {
                 </Text>
                 <FlexBox alignItems="Center" style={{ gap: '0.5rem' }}>
                   <Text style={{ fontSize: 'var(--sapFontSmallSize)', color: 'var(--sapNeutralColor)' }}>
-                    Bereich {tp.area}
+                    {tp.area}
                   </Text>
                   {tp.source && (
                     <ObjectStatus

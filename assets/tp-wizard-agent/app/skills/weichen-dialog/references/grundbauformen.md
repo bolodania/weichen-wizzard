@@ -1,35 +1,33 @@
 # Grundbauformen — Unterstützte Weichentypen
 
-| Kürzel | Bezeichnung | Beschreibung | Typische TP-Anzahl |
-|--------|-------------|--------------|-------------------|
-| EWL | Einfache Weiche links | Standardweiche, Abzweig nach links | ~25–35 TPs |
-| EWR | Einfache Weiche rechts | Standardweiche, Abzweig nach rechts | ~25–35 TPs |
-| DKW | Doppelte Kreuzungsweiche | Kreuzung mit 4 Abzweigen | ~60–100 TPs |
-| EKW | Einfache Kreuzungsweiche | Kreuzung mit 2 Abzweigen | ~40–60 TPs |
-| IBW | Innenbogenweiche | Weiche im Innenbogen | ~25–40 TPs |
-| DW  | Dreiwegweiche | 3 Abzweige (links + rechts + gerade) | ~50–80 TPs |
-| ABW | Außenbogenweiche | Weiche im Außenbogen | ~25–40 TPs |
+Das geprüfte Regelwerk deckt aktuell **ausschließlich die EWR (einfache Weiche rechts)** ab.
+Alle 99 Regeln gelten für `giltFuer = EWR`. Für andere Grundbauformen kann eine Session
+angelegt werden, es werden aber noch keine Technischen Plätze abgeleitet (Hinweis an Katrin geben),
+bis deren Regelwerk ergänzt ist.
 
-## Referenzbeispiele
+| Kürzel | Bezeichnung | Regelwerk |
+|--------|-------------|-----------|
+| EWR | Einfache Weiche rechts | ✅ vorhanden |
+| EWL | Einfache Weiche links | — (noch nicht hinterlegt) |
+| DKW | Doppelte Kreuzungsweiche | — |
+| EKW | Einfache Kreuzungsweiche | — |
+| IBW | Innenbogenweiche | — |
+| DW  | Dreiwegweiche | — |
+| ABW | Außenbogenweiche | — |
 
-### NI_W2006 — Einfache Weiche (einfach)
+## Referenzbeispiele (Golden-Fälle)
+
+Die Ableitung wird deterministisch gegen diese beiden geprüften Beispielweichen getestet
+(`test/golden/ergebnis-*.csv`).
+
+### NI_W2006 — EWR, starres Herzstück
 - Grundbauform: EWR
-- Stw-Bauform: SETEDBRU
-- Herzstück: starr (Bauart 0)
-- Antriebe Zgv: 1
-- Elektrische Heizung: Ja
-- Weichensignal: 1 (keine Lichtpunkte)
-- **Ergebnis: ~18–30 TPs**
+- Herzstückbauart: 0 (starr)
+- Verschlussebenen Zgv: 1, ein Antrieb
+- **Ergebnis: exakt 25 TPs**
 
-### NRB_W806 — Einfache Weiche (komplex)
-- Grundbauform: EWR  
-- Stw-Bauform: SELSL60N
-- Herzstück: beweglich (Bauart 2) + Federwippe
-- Verschlussebenen Zgv: 8
-- Rollvorrichtungspaare Zgv: 11
-- Antriebe Zgv: 2 + Übertragungsgestänge
-- Antriebe Hz: 1 + Übertragungsgestänge
-- Radsensoren: 2
-- Isolierstöße: 8 Positionen
-- Elektrische Heizung: Ja
-- **Ergebnis: ~50–80 TPs**
+### NRB_W806 — EWR, bewegliches Herzstück
+- Grundbauform: EWR
+- Herzstückbauart: 2 (beweglich)
+- Verschlussebenen Zgv: 8, zwei Antriebe; Herzstück mit eigenen Verschlussebenen
+- **Ergebnis: exakt 110 TPs**

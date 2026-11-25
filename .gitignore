@@ -47,6 +47,10 @@ _out/
 # Generated mockups (rebuild via docs/mockups/generator.js)
 docs/mockups/
 
+# Typst build output (fonts + compiled PDF — regenerate with typst compile)
+docs/output/fonts/
+docs/output/*.pdf
+
 # Sensitive documents — kept locally only
 Unterlagen DB/
 Kopie von Fragen.xlsx

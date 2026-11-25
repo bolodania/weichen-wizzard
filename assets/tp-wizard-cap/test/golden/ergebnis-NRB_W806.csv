@@ -1,0 +1,111 @@
+TP;Suffix;Bezeichnung;Positionsnummer;Planergruppe;Regel;im Beispiel
+NRB----WE----806STR-A;STR-A;Strang A;0020;O;10;Ja
+NRB----WE----806STR-B;STR-B;Strang B;0030;O;11;Ja
+NRB----WE----806ZUBA-;ZUBA-;Zungenvorrichtungsbereich A;0300;O;20;Ja
+NRB----WE----806ZUBA-ZGV-L;ZUBA-ZGV-L;Zungenvorrichtung links;0310;O;21;Ja
+NRB----WE----806ZUBA-ZGV-LISO1;ZUBA-ZGV-LISO1;Zungenvorrichtung links Iso;0320;O;132;Ja
+NRB----WE----806ZUBA-ZGV-R;ZUBA-ZGV-R;Zungenvorrichtung rechts;0330;O;22;Ja
+NRB----WE----806ZUBA-ZGV-RISO1;ZUBA-ZGV-RISO1;Zungenvorrichtung rechts Iso;0340;O;133;Ja
+NRB----WE----806ZUBA-ZR-01;ZUBA-ZR-01;Zungenrollvorrichtungspaar N;0350;S;33;Ja
+NRB----WE----806ZUBA-ZR-02;ZUBA-ZR-02;Zungenrollvorrichtungspaar N;0350;S;33;Ja
+NRB----WE----806ZUBA-ZR-03;ZUBA-ZR-03;Zungenrollvorrichtungspaar N;0350;S;33;Ja
+NRB----WE----806ZUBA-ZR-04;ZUBA-ZR-04;Zungenrollvorrichtungspaar N;0350;S;33;Ja
+NRB----WE----806ZUBA-ZR-05;ZUBA-ZR-05;Zungenrollvorrichtungspaar N;0350;S;33;Ja
+NRB----WE----806ZUBA-ZR-06;ZUBA-ZR-06;Zungenrollvorrichtungspaar N;0350;S;33;Ja
+NRB----WE----806ZUBA-ZR-07;ZUBA-ZR-07;Zungenrollvorrichtungspaar N;0350;S;33;Ja
+NRB----WE----806ZUBA-ZR-08;ZUBA-ZR-08;Zungenrollvorrichtungspaar N;0350;S;33;Ja
+NRB----WE----806ZUBA-ZR-09;ZUBA-ZR-09;Zungenrollvorrichtungspaar N;0350;S;33;Ja
+NRB----WE----806ZUBA-ZR-10;ZUBA-ZR-10;Zungenrollvorrichtungspaar N;0350;S;33;Ja
+NRB----WE----806ZUBA-ZR-11;ZUBA-ZR-11;Zungenrollvorrichtungspaar N;0350;S;33;Ja
+NRB----WE----806ZUBA-WA-01;ZUBA-WA-01;Antrieb N;0360;S;40;Ja
+NRB----WE----806ZUBA-WA-02;ZUBA-WA-02;Antrieb N;0360;S;40;Ja
+NRB----WE----806ZUBA-WA-01UEG-;ZUBA-WA-01UEG-;Übertragungsgestänge N;0400;S;41;Ja
+NRB----WE----806ZUBA-WA-02UEG-;ZUBA-WA-02UEG-;Übertragungsgestänge N;0400;S;41;Nein
+NRB----WE----806ZUBA-WA-01PRSS;ZUBA-WA-01PRSS;Abschließbarer Prüferschieber;0410;S;42;Ja
+NRB----WE----806ZUBA-WA-02PRSS;ZUBA-WA-02PRSS;Abschließbarer Prüferschieber;0410;S;42;Nein
+NRB----WE----806ZUBA-VE-01;ZUBA-VE-01;Verschlussebene N;0420;S;23;Ja
+NRB----WE----806ZUBA-VE-02;ZUBA-VE-02;Verschlussebene N;0420;S;23;Ja
+NRB----WE----806ZUBA-VE-03;ZUBA-VE-03;Verschlussebene N;0420;S;23;Ja
+NRB----WE----806ZUBA-VE-04;ZUBA-VE-04;Verschlussebene N;0420;S;23;Ja
+NRB----WE----806ZUBA-VE-05;ZUBA-VE-05;Verschlussebene N;0420;S;23;Ja
+NRB----WE----806ZUBA-VE-06;ZUBA-VE-06;Verschlussebene N;0420;S;23;Ja
+NRB----WE----806ZUBA-VE-07;ZUBA-VE-07;Verschlussebene N;0420;S;23;Ja
+NRB----WE----806ZUBA-VE-08;ZUBA-VE-08;Verschlussebene N;0420;S;23;Ja
+NRB----WE----806ZUBA-VE-01VSLL;ZUBA-VE-01VSLL;Verschluss links;0430;S;24;Ja
+NRB----WE----806ZUBA-VE-02VSLL;ZUBA-VE-02VSLL;Verschluss links;0430;S;24;Ja
+NRB----WE----806ZUBA-VE-03VSLL;ZUBA-VE-03VSLL;Verschluss links;0430;S;24;Ja
+NRB----WE----806ZUBA-VE-04VSLL;ZUBA-VE-04VSLL;Verschluss links;0430;S;24;Ja
+NRB----WE----806ZUBA-VE-05VSLL;ZUBA-VE-05VSLL;Verschluss links;0430;S;24;Ja
+NRB----WE----806ZUBA-VE-06VSLL;ZUBA-VE-06VSLL;Verschluss links;0430;S;24;Ja
+NRB----WE----806ZUBA-VE-07VSLL;ZUBA-VE-07VSLL;Verschluss links;0430;S;24;Ja
+NRB----WE----806ZUBA-VE-08VSLL;ZUBA-VE-08VSLL;Verschluss links;0430;S;24;Ja
+NRB----WE----806ZUBA-VE-01VSLR;ZUBA-VE-01VSLR;Verschluss rechts;0440;S;25;Ja
+NRB----WE----806ZUBA-VE-02VSLR;ZUBA-VE-02VSLR;Verschluss rechts;0440;S;25;Ja
+NRB----WE----806ZUBA-VE-03VSLR;ZUBA-VE-03VSLR;Verschluss rechts;0440;S;25;Ja
+NRB----WE----806ZUBA-VE-04VSLR;ZUBA-VE-04VSLR;Verschluss rechts;0440;S;25;Ja
+NRB----WE----806ZUBA-VE-05VSLR;ZUBA-VE-05VSLR;Verschluss rechts;0440;S;25;Ja
+NRB----WE----806ZUBA-VE-06VSLR;ZUBA-VE-06VSLR;Verschluss rechts;0440;S;25;Ja
+NRB----WE----806ZUBA-VE-07VSLR;ZUBA-VE-07VSLR;Verschluss rechts;0440;S;25;Ja
+NRB----WE----806ZUBA-VE-08VSLR;ZUBA-VE-08VSLR;Verschluss rechts;0440;S;25;Ja
+NRB----WE----806ZUBA-VE-01VSFA;ZUBA-VE-01VSFA;Verschlussfachabdeckung;0450;S;26;Ja
+NRB----WE----806ZUBA-VE-02VSFA;ZUBA-VE-02VSFA;Verschlussfachabdeckung;0450;S;26;Ja
+NRB----WE----806ZUBA-VE-03VSFA;ZUBA-VE-03VSFA;Verschlussfachabdeckung;0450;S;26;Ja
+NRB----WE----806ZUBA-VE-04VSFA;ZUBA-VE-04VSFA;Verschlussfachabdeckung;0450;S;26;Ja
+NRB----WE----806ZUBA-VE-05VSFA;ZUBA-VE-05VSFA;Verschlussfachabdeckung;0450;S;26;Ja
+NRB----WE----806ZUBA-VE-06VSFA;ZUBA-VE-06VSFA;Verschlussfachabdeckung;0450;S;26;Ja
+NRB----WE----806ZUBA-VE-07VSFA;ZUBA-VE-07VSFA;Verschlussfachabdeckung;0450;S;26;Ja
+NRB----WE----806ZUBA-VE-08VSFA;ZUBA-VE-08VSFA;Verschlussfachabdeckung;0450;S;26;Ja
+NRB----WE----806ZUBA-ZP-01;ZUBA-ZP-01;Zungenprüfkontakt N;0460;S;30;Ja
+NRB----WE----806ZUBA-ZP-02;ZUBA-ZP-02;Zungenprüfkontakt N;0460;S;30;Ja
+NRB----WE----806ZUBA-ZP-03;ZUBA-ZP-03;Zungenprüfkontakt N;0460;S;30;Ja
+NRB----WE----806ZUBA-ZP-04;ZUBA-ZP-04;Zungenprüfkontakt N;0460;S;30;Ja
+NRB----WE----806ZUBA-ZP-05;ZUBA-ZP-05;Zungenprüfkontakt N;0460;S;30;Ja
+NRB----WE----806ZUBA-ZP-06;ZUBA-ZP-06;Zungenprüfkontakt N;0460;S;30;Ja
+NRB----WE----806ZUBA-ZP-07;ZUBA-ZP-07;Zungenprüfkontakt N;0460;S;30;Ja
+NRB----WE----806ZUBA-ZP-01VSFA;ZUBA-ZP-01VSFA;Zungenprüfkontaktfachabdeckung;0470;S;31;Ja
+NRB----WE----806ZUBA-ZP-02VSFA;ZUBA-ZP-02VSFA;Zungenprüfkontaktfachabdeckung;0470;S;31;Ja
+NRB----WE----806ZUBA-ZP-03VSFA;ZUBA-ZP-03VSFA;Zungenprüfkontaktfachabdeckung;0470;S;31;Ja
+NRB----WE----806ZUBA-ZP-04VSFA;ZUBA-ZP-04VSFA;Zungenprüfkontaktfachabdeckung;0470;S;31;Ja
+NRB----WE----806ZUBA-ZP-05VSFA;ZUBA-ZP-05VSFA;Zungenprüfkontaktfachabdeckung;0470;S;31;Ja
+NRB----WE----806ZUBA-ZP-06VSFA;ZUBA-ZP-06VSFA;Zungenprüfkontaktfachabdeckung;0470;S;31;Ja
+NRB----WE----806ZUBA-ZP-07VSFA;ZUBA-ZP-07VSFA;Zungenprüfkontaktfachabdeckung;0470;S;31;Ja
+NRB----WE----806ZSBA-;ZSBA-;Zwischenschienenbereich A;1100;O;70;Ja
+NRB----WE----806ZSBA-BSRLL;ZSBA-BSRLL;Zwischenschiene links Bs-Rl;1110;O;71;Ja
+NRB----WE----806ZSBA-BSRLLISO1;ZSBA-BSRLLISO1;Zwischenschiene links Bs-Rl Iso;1120;O;134;Ja
+NRB----WE----806ZSBA-ZGHZL;ZSBA-ZGHZL;Zwischenschiene links Zg-Hz;1140;O;73;Ja
+NRB----WE----806ZSBA-ZGHZLISO1;ZSBA-ZGHZLISO1;Zwischenschiene links Zg-Hz Iso;1150;O;135;Ja
+NRB----WE----806ZSBA-BSRLR;ZSBA-BSRLR;Zwischenschiene rechts Bs-Rl;1160;O;72;Ja
+NRB----WE----806ZSBA-BSRLRISO1;ZSBA-BSRLRISO1;Zwischenschiene rechts Bs-Rl Iso;1170;O;136;Ja
+NRB----WE----806ZSBA-ZGHZR;ZSBA-ZGHZR;Zwischenschiene rechts Zg-Hz;1190;O;74;Ja
+NRB----WE----806ZSBA-ZGHZRISO1;ZSBA-ZGHZRISO1;Zwischenschiene rechts Zg-Hz Iso;1200;O;137;Ja
+NRB----WE----806HZ-AB;HZ-AB;Herzstückbereich Strang A/B;1900;O;50;Ja
+NRB----WE----806HZ-ABHZ---;HZ-ABHZ---;Herzstück A/B;1910;O;51;Ja
+NRB----WE----806HZ-ABRLL--;HZ-ABRLL--;Radlenker A/B links;1920;O;65;Ja
+NRB----WE----806HZ-ABRLL--ISO1;HZ-ABRLL--ISO1;Radlenker A/B links Iso;1930;O;138;Ja
+NRB----WE----806HZ-ABRLR--;HZ-ABRLR--;Radlenker A/B rechts;1940;O;66;Ja
+NRB----WE----806HZ-ABRLR--ISO1;HZ-ABRLR--ISO1;Radlenker A/B rechts Iso;1950;O;139;Ja
+NRB----WE----806HZ-ABWA-01;HZ-ABWA-01;Antrieb N;1960;S;59;Ja
+NRB----WE----806HZ-ABWA-01UEG-;HZ-ABWA-01UEG-;Übertragungsgestänge N;2000;S;60;Ja
+NRB----WE----806HZ-ABVE--1;HZ-ABVE--1;Verschlussebene N;2010;S;53;Ja
+NRB----WE----806HZ-ABVE--2;HZ-ABVE--2;Verschlussebene N;2010;S;53;Ja
+NRB----WE----806HZ-ABVE--3;HZ-ABVE--3;Verschlussebene N;2010;S;53;Ja
+NRB----WE----806HZ-ABVE--1VSLL;HZ-ABVE--1VSLL;Verschluss links;2100;S;54;Ja
+NRB----WE----806HZ-ABVE--2VSLL;HZ-ABVE--2VSLL;Verschluss links;2100;S;54;Ja
+NRB----WE----806HZ-ABVE--3VSLL;HZ-ABVE--3VSLL;Verschluss links;2100;S;54;Ja
+NRB----WE----806HZ-ABVE--1VSLR;HZ-ABVE--1VSLR;Verschluss rechts;2110;S;55;Ja
+NRB----WE----806HZ-ABVE--2VSLR;HZ-ABVE--2VSLR;Verschluss rechts;2110;S;55;Ja
+NRB----WE----806HZ-ABVE--3VSLR;HZ-ABVE--3VSLR;Verschluss rechts;2110;S;55;Ja
+NRB----WE----806HZ-ABVE--1VSFA;HZ-ABVE--1VSFA;Verschlussfachabdeckung;2120;S;56;Ja
+NRB----WE----806HZ-ABVE--2VSFA;HZ-ABVE--2VSFA;Verschlussfachabdeckung;2120;S;56;Ja
+NRB----WE----806HZ-ABVE--3VSFA;HZ-ABVE--3VSFA;Verschlussfachabdeckung;2120;S;56;Nein
+NRB----WE----806HZ-ABZR-01;HZ-ABZR-01;Zungenrollvorrichtungspaar N;2130;S;57;Ja
+NRB----WE----806HZ-ABZR-02;HZ-ABZR-02;Zungenrollvorrichtungspaar N;2130;S;57;Ja
+NRB----WE----806HZ-ABZR-03;HZ-ABZR-03;Zungenrollvorrichtungspaar N;2130;S;57;Ja
+NRB----WE----806HZ-ABRSA-1;HZ-ABRSA-1;Radsensor f. Auffahrortung ....;2150;S;67;Ja
+NRB----WE----806HZ-ABRSA-2;HZ-ABRSA-2;Radsensor f. Auffahrortung ....;2150;S;67;Nein
+NRB----WE----806SW---;SW---;Schwellen;6000;O;12;Ja
+NRB----WE----806EV---;EV---;Erdung/Vermaschung allgemein;6010;E10;90;Ja
+NRB----WE----806WSIG1;WSIG1;Weichensignal (Wn-Signal);6030;S;80;Ja
+NRB----WE----806WSIG1LP001;WSIG1LP001;Weichensignal Lichtpunkt;6040;S;81;Ja
+NRB----WE----806WUE-1;WUE-1;Weichenüberwachungseinr.;6050;S;86;Ja
+NRB----WE----806EEH01;EEH01;EW... Elektrische Heizstäbe;6060;E20;91;Ja

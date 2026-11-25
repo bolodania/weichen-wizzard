@@ -46,6 +46,7 @@ export function MessageInput({ onSend, disabled }) {
   return (
     <div style={{
       display: 'flex',
+      alignItems: 'center',
       gap: '0.5rem',
       padding: '0.75rem',
       borderTop: '1px solid var(--sapGroup_TitleBorderColor)',
@@ -53,14 +54,19 @@ export function MessageInput({ onSend, disabled }) {
     }}>
       <Input
         style={{ flex: 1 }}
-        placeholder={listening ? '🎙 Höre zu...' : 'Nachricht eingeben...'}
+        placeholder={listening ? 'Höre zu...' : 'Nachricht eingeben...'}
         value={text}
         onInput={e => setText(e.target.value)}
         onKeyDown={e => e.key === 'Enter' && handleSend()}
         disabled={disabled}
       />
-      <Button icon="microphone" design={listening ? 'Attention' : 'Default'} onClick={handleMic}>{listening ? 'Stop' : 'Mic'}</Button>
-      <Button design="Emphasized" icon="send" onClick={handleSend} disabled={disabled || !text.trim()}>Senden</Button>
+      <Button
+        icon="microphone"
+        design={listening ? 'Attention' : 'Default'}
+        tooltip={listening ? 'Aufnahme stoppen' : 'Spracheingabe'}
+        onClick={handleMic}
+      />
+      <Button design="Emphasized" icon="paper-plane" onClick={handleSend} disabled={disabled || !text.trim()}>Senden</Button>
     </div>
   );
 }

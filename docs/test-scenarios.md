@@ -1,234 +1,157 @@
-# TP-Wizard — Testszenarien
+# TP-Wizard Weiche — Testszenarien (EWR-Regelwerk)
 
-Vorbedingung: Alle drei Server laufen.
+Die TP-Ableitung kommt ausschließlich aus dem geprüften Regelwerk (einfache Weiche rechts, **EWR**).
+Golden-Kontrakt: `NI_W2006` → **25 TPs**, `NRB_W806` → **110 TPs**.
+
+Vorbedingung — Server starten:
 
 ```bash
-cd assets/tp-wizard-cap && FL_MOCK=true npm run dev   # :4004
-cd assets/tp-wizard-cap/app-field  && npm run dev     # :5174
-cd assets/tp-wizard-cap/app-approve && npm run dev    # :5177
+cd assets/tp-wizard-cap && FL_MOCK=true npm run dev                          # :4004 (CAP)
+cd assets/tp-wizard-cap/app-field   && npm run dev                           # :5174 (Katrin)
+cd assets/tp-wizard-cap/app-approve && npm run dev                           # :5177 (Thomas)
+cd assets/tp-wizard-agent && source .env && python3 app/main.py --port 5001  # :5001 (Agent)
 ```
+
+Die Datenbank ist beim Deploy mit zwei EWR-Demo-Sessions vorbefüllt:
+`NI 2006` (Status *submitted*, 25 TPs) und `NRB 806` (Status *editing*, 110 TPs).
 
 ---
 
-## Szenario 1 — Standard EWL (einfachster Weg)
+## Szenario 1 — Thomas prüft die geseedeten Demo-Sessions (deterministisch)
 
-**Katrin öffnet** http://localhost:5174
+**Thomas öffnet** http://localhost:5177 (oder http://localhost:4004/approve/webapp/index.html).
 
-### Einstiegsformular
+1. Die Liste zeigt die beiden Demo-Sessions `NI 2006` und `NRB 806`.
+2. `NRB 806` öffnen → Object Page.
+3. **TP-Struktur-Tab:** exakt **110 TPs**, Eltern vor Kindern, mit Bereich, Planergruppe, Ebene.
+4. **Antworten-Tab:** Spalten Bereich · Frage · Antwort · **Herkunft** · **Beleg** · Quelle.
+5. `NI 2006` öffnen → **25 TPs**.
+
+**Erwartet:** Zahlen und Suffixe stimmen mit `test/golden/ergebnis-*.csv` überein.
+
+---
+
+## Szenario 2 — Katrin erfasst eine neue EWR-Weiche
+
+**Katrin öffnet** http://localhost:5174.
 
 | Feld | Wert |
 |---|---|
-| Betriebsstelle (DS100) | `NI` |
-| Weichennummer | `2006` |
-| Grundbauform | Einfache Weiche links (EWL) |
+| Betriebsstelle (DS100) | `NRB` |
+| Weichennummer | `806` |
+| Grundbauform | **Einfache Weiche rechts (EWR)** (Standard) |
 
-→ "Erfassung starten"
+→ „Erfassung starten". Der Agent lädt Vorgaben (`getSmartDefaults`) und fragt die offenen,
+sichtbaren Angaben ab (`getNextQuestion`). Antworten z. B.:
 
-### Chatdialog
+| Angabe (ID) | Frage (gekürzt) | Antwort |
+|---|---|---|
+| `zgv_ve` | Verschlussebenen Zungenvorrichtung | `8` |
+| `zgv_wa` | Antriebe Zungenvorrichtung | `2` |
+| `hz_bauart` | Herzstückbauart (0 starr, 1–2 beweglich) | `2` |
+| `antrieb_art` | Antriebsart | `elektromechanisch` |
 
-Der Agent setzt automatisch: `rückbauStatus=0`, `prellbock=false`.
-Für alle weiteren Fragen diese Werte eingeben:
-
-| Frage (gekürzt) | Antwort |
-|---|---|
-| Stellwerks-Bauform | `SELSL60N` |
-| Verschlussebenen Zgv | `1` |
-| Zungenrollvorrichtungspaare | `0` |
-| Federwippe vorhanden? | `false` |
-| Herzstück-Bauart | `0` |
-| Radsensoren | `0` |
-| Antriebe an der Zgv | `1` |
-| Antrieb hydraulisch? | `false` |
-
-→ Alle Fragen beantwortet → "Einreichen"
-
-**Erwartet:** TP-Vorschau zeigt mehrere TPs; Erfolgsmeldung mit Session-ID.
+**Erwartet:** Die TP-Vorschau wächst mit jeder Angabe; abgeleitete Angaben (`hz_beweglich`,
+`zgv_ueg`) werden nicht gefragt; A-Plätze (z. B. `STR-A`, `EV---`) erscheinen ohne Frage.
+Für eine **andere Grundbauform als EWR** erscheint der Hinweis „Regelwerk fehlt" und es werden
+keine TPs abgeleitet.
 
 ---
 
-## Szenario 2 — DKW mit beweglichem Herzstück (komplexer)
+## Szenario 3 — Fertigmeldung und Belegpflicht (`applyDocumentValues`)
 
-**Katrin öffnet** http://localhost:5174
-
-### Einstiegsformular
-
-| Feld | Wert |
-|---|---|
-| Betriebsstelle (DS100) | `FF` |
-| Weichennummer | `105` |
-| Grundbauform | Doppelte Kreuzungsweiche (DKW) |
-
-### Chatdialog
-
-Agent setzt automatisch: `rückbauStatus=0`, `prellbock=false`, `herzstückbauart=2` (beweglich), `federwippe=true`.
-
-| Frage (gekürzt) | Antwort |
-|---|---|
-| Stellwerks-Bauform | `SELSL60N` |
-| Verschlussebenen Zgv | `2` |
-| Zungenrollvorrichtungspaare | `1` |
-| Federwippe vorhanden? | `true` |
-| Herzstück-Bauart | `2` |
-| Verschlussebenen Herzstück | `1` |
-| Herzstück-Rollpaare | `0` |
-| Radsensoren | `0` |
-| Antriebe an der Zgv | `2` |
-| Antriebe am Herzstück | `1` |
-| Antrieb hydraulisch? | `false` |
-
-→ Einreichen
-
-**Erwartet:** Mehr TPs als Szenario 1 (bewegliches Hz erzeugt zusätzliche TP-Positionen).
-
----
-
-## Thomas-Freigabe (beide Szenarien)
-
-**Thomas öffnet** http://localhost:5177
-
-1. Session in der Liste sehen (Status: *Eingereicht*)
-2. Draufklicken → Object Page öffnet sich
-3. Antworten prüfen — amber markierte Zeilen = Agentannahmen
-4. Optional: Wert per Bleistift-Icon bearbeiten
-5. "Freigeben" → Bestätigungsdialog → "Freigeben"
-
-**Erwartet:** `FL_MOCK=true` → Dummy-Ergebnis; CAP-Log zeigt:
-```
-[M4.achieved]: SAP-Schreibzugriff A21 erfolgreich
-[M5.achieved]: Zwei-Rollen-Flow vollstaendig durchlaufen
-```
-
----
-
-## Szenario 3 — Vollständiger Zwei-Rollen-Workflow (E2E-Verifizierung)
-
-Getestet am 2026-10-13. Dieses Szenario prüft den gesamten Workflow von Katrins Erfassung bis zu Thomas' Freigabe und bestätigt, dass `approveSession` die einzige SAP-Schreiboperation ist.
-
-### Schritt 1: Session anlegen (Katrin — curl oder app-field)
-
-**Option A: curl (schnell, kein Agent nötig)**
+Werte aus einer Fertigmeldung dürfen nur mit einer **wörtlich vorkommenden Textstelle** gesetzt werden.
 
 ```bash
-# Session erstellen
-curl -s -X POST http://localhost:4004/wizard/createSession \
+# Session mit Fertigmeldungstext anlegen
+SID=$(curl -s -X POST http://localhost:4004/wizard/createSession \
   -H "Content-Type: application/json" \
-  -d '{"ds100":"NI","switchNumber":"2006","basicForm":"EWL"}' | python3 -m json.tool
-# → {"sessionId":"<uuid>","message":"Session erstellt"}
+  -d '{"ds100":"NRB","switchNumber":"806","basicForm":"EWR","fertigmeldung":"Die Zungenvorrichtung hat 8 Verschlussebenen und 2 Antriebe."}' \
+  | python3 -c "import sys,json;print(json.load(sys.stdin)['sessionId'])")
 
-SID=<uuid aus obiger Ausgabe>
-
-# Smart Defaults laden (Agent würde das tun)
-curl -s "http://localhost:4004/wizard/getSmartDefaults(basicForm='EWL')" | python3 -m json.tool
-# → rückbauStatus="keine", prellbock=false werden als agent-default gesetzt
-
-# Antworten einreichen — agent-default Werte
-curl -s -X POST http://localhost:4004/wizard/submitAnswer \
+# Gültige Textstelle -> übernommen
+curl -s -X POST http://localhost:4004/wizard/applyDocumentValues \
   -H "Content-Type: application/json" \
-  -d "{\"sessionId\":\"$SID\",\"questionId\":\"rückbauStatus\",\"answer\":\"keine\",\"source\":\"agent-default\"}"
-curl -s -X POST http://localhost:4004/wizard/submitAnswer \
-  -H "Content-Type: application/json" \
-  -d "{\"sessionId\":\"$SID\",\"questionId\":\"prellbock\",\"answer\":\"false\",\"source\":\"agent-default\"}"
+  -d "{\"sessionId\":\"$SID\",\"values\":\"[{\\\"angabe\\\":\\\"zgv_ve\\\",\\\"wert\\\":\\\"8\\\",\\\"textstelle\\\":\\\"8 Verschlussebenen\\\"}]\"}" \
+  | python3 -m json.tool
+# -> uebernommen: [{ questionId: zgv_ve, herkunft: Dokument, beleg: "Textstelle: …" }], abgelehnt: []
 
-# Antworten einreichen — von Katrin bestätigt
-for QA in \
-  "stellwerksBauform:SELSL60N" \
-  "verschlussebenenZgv:2" \
-  "zungenrollvorrichtungspaare:1" \
-  "federwippe:false" \
-  "herzstückbauart:0" \
-  "radsensoren:0" \
-  "weichenantriebe:1" \
-  "hydraulischeAntriebe:false" \
-  "weichensignale:0" \
-  "dezentraleWeichensteuerung:false" \
-  "weichenüberwachung:false" \
-  "isolierstöße:keine" \
-  "hemmschuhauswurfvorrichtungen:keine" \
-  "gleisstückWeichenspitze:false" \
-  "gleisstückEndbereichA:false" \
-  "gleisstückEndbereichB:false" \
-  "erdung:false" \
-  "weichenheizung:keine"; do
+# Erfundene Textstelle -> abgelehnt (kein erfundener Wert)
+curl -s -X POST http://localhost:4004/wizard/applyDocumentValues \
+  -H "Content-Type: application/json" \
+  -d "{\"sessionId\":\"$SID\",\"values\":\"[{\\\"angabe\\\":\\\"zgv_ve\\\",\\\"wert\\\":\\\"99\\\",\\\"textstelle\\\":\\\"99 Verschlussebenen\\\"}]\"}" \
+  | python3 -m json.tool
+# -> uebernommen: [], abgelehnt: [{ grund: "Textstelle … steht nicht in der Fertigmeldung" }]
+```
+
+**Erwartet:** Nur der erste Wert wird übernommen (Herkunft `Dokument`, Beleg = Textstelle);
+ein nicht belegter oder typwidriger Wert wird abgelehnt.
+
+---
+
+## Szenario 4 — Zwei-Rollen-Workflow per curl (E2E)
+
+```bash
+# 1) Session (Katrin)
+SID=$(curl -s -X POST http://localhost:4004/wizard/createSession \
+  -H "Content-Type: application/json" \
+  -d '{"ds100":"NI","switchNumber":"2006","basicForm":"EWR"}' \
+  | python3 -c "import sys,json;print(json.load(sys.stdin)['sessionId'])")
+
+# 2) Angaben setzen (EWR-Angabe-IDs aus dem Eingabenkatalog)
+for QA in "zgv_ve:1" "zgv_wa:1" "hz_bauart:0"; do
   Q="${QA%%:*}"; A="${QA##*:}"
   curl -s -X POST http://localhost:4004/wizard/submitAnswer \
     -H "Content-Type: application/json" \
-    -d "{\"sessionId\":\"$SID\",\"questionId\":\"$Q\",\"answer\":\"$A\",\"source\":\"katrin-confirmed\"}"
+    -d "{\"sessionId\":\"$SID\",\"questionId\":\"$Q\",\"answer\":\"$A\",\"source\":\"katrin-confirmed\"}" >/dev/null
 done
 
-# TP-Vorschau prüfen (erwartet: 13 TPs)
+# 3) TP-Vorschau (aus dem Regelwerk)
 curl -s "http://localhost:4004/wizard/getTPPreview(sessionId='$SID')" | python3 -c \
-  "import sys,json; tps=json.loads(json.load(sys.stdin)['value']); print(f'{len(tps)} TPs')"
-# → 13 TPs
+  "import sys,json; print(len(json.loads(json.load(sys.stdin)['value'])), 'TPs')"
 
-# Session einreichen
+# 4) Einreichen (Katrin)
 curl -s -X POST http://localhost:4004/wizard/submitSession \
-  -H "Content-Type: application/json" \
-  -d "{\"sessionId\":\"$SID\"}" | python3 -m json.tool
-# → {"sessionId":"...","message":"Einreichung erfolgreich — wartet auf Freigabe durch Thomas"}
-```
+  -H "Content-Type: application/json" -d "{\"sessionId\":\"$SID\"}" | python3 -m json.tool
 
-**Option B: app-field mit Agent**
-
-1. http://localhost:5174 öffnen
-2. DS100=`NI`, Weiche=`2006`, Grundbauform=`EWL`, "Erfassung starten"
-3. Antworten wie in Szenario 1, dann Agent ruft `submitSession` auf
-4. **Erwartet:** Erfolgsmeldung mit korrekter Session-ID (nicht "null") und TP-Anzahl
-
-### Schritt 2: app-approve (Thomas)
-
-1. http://localhost:5177 öffnen
-2. **Erwartet:** Tabelle zeigt 1 Eintrag — `NI | 2006 | EWL | Eingereicht | 13 TPs | 2 offen`
-
-### Schritt 3: Object Page
-
-3. Auf die Zeile klicken → Object Page öffnet sich
-4. **Header:** `NI W2006 — EWL` · Status: `Eingereicht` · `2 Agentannahmen`
-5. **Hinweise-Tab:** Warnung `⚠ 2 Agentannahmen nicht geprüft — rückbauStatus, prellbock`
-6. **Antworten-Tab:**
-   - `rückbauStatus = keine` mit Chip `AGENT-STANDARD` (orange)
-   - `prellbock = false` mit Chip `AGENT-STANDARD` (orange)
-   - Alle übrigen 18 Antworten mit Chip `BESTÄTIGT` (grün)
-7. **TP-Vorschau-Tab:** `TP-Vorschau (13 TPs)` mit Gruppen Objektgruppe(1), Zgv(1), Herzstück(1), Radlenker(2), Stränge(2), Schwellen(1), Zwischenschiene(5)
-
-### Schritt 4: Freigabe
-
-8. Schaltfläche "Freigeben" klicken
-9. **Dialog:** `13 Technische Plätze werden in SAP S/4HANA angelegt. Davon basieren 2 Einträge auf Agentannahmen...`
-10. "Freigeben" im Dialog bestätigen
-11. **Erwartet:** Zurück zur Liste — `Ausstehende Einreichungen (0)`, leerer Zustand
-
-### Verifizierung
-
-```bash
-# Session-Status in der DB prüfen
-curl -s "http://localhost:4004/wizard/Sessions" | python3 -c \
-  "import sys,json; ss=json.loads(sys.stdin.read()); \
-   [print(s['sessionId'][:8],'status='+s['status']) for s in ss.get('value',[])]"
-# → <uuid-prefix> status=created
-
-# Keine ausstehenden Sessions mehr
-curl -s "http://localhost:4004/wizard/listPendingSessions()" | python3 -m json.tool
-# → {"value":"[]"}
+# 5) Freigeben (Thomas) — einzige SAP-Schreiboperation
+curl -s -X POST http://localhost:4004/wizard/approveSession \
+  -H "Content-Type: application/json" -d "{\"sessionId\":\"$SID\"}" | python3 -m json.tool
+# -> { created: "[…]", failed: "[]", openFields: "[]" }
 ```
 
 **CAP-Server-Log erwartet:**
 ```
-[M4.achieved]: SAP-Schreibzugriff A21 erfolgreich — TPs im System angelegt: 13
-[M5.achieved]: Zwei-Rollen-Flow vollstaendig durchlaufen — Katrin submitted, Thomas approved, SAP write success
-```
-
-**Sicherheitscheck:** `approveSession` darf NICHT im MCP-Tool-Set des Agenten erscheinen:
-```bash
-cat assets/tp-wizard-agent/mcp-mock.json | python3 -c \
-  "import sys,json; tools=[t['name'] for t in json.load(sys.stdin)['tools']]; \
-   assert 'approveSession' not in tools, 'FEHLER: approveSession im Agent!'; \
-   print('OK — approveSession nicht im Agent:', tools)"
+[M4.achieved]: SAP-Schreibzugriff A21 erfolgreich — TPs angelegt: <n>
+[M5.achieved]: Zwei-Rollen-Flow vollständig — Katrin submitted, Thomas approved, SAP write success
 ```
 
 ---
 
-## Bekannte Einschränkungen (Hackathon)
+## Sicherheitscheck — `approveSession` nicht im Agent-Toolset
 
-- Sessions leben nur im RAM — nach CAP-Neustart sind alle Sitzungen weg
-- Nach Freigabe landet Thomas direkt auf der (leeren) Liste ohne Erfolgsmeldung
-- Antworten die Thomas bearbeitet, werden nicht in die DB zurückgeschrieben bis zur Freigabe
+```bash
+python3 -c "import json; \
+t=json.load(open('assets/tp-wizard-agent/mcp-mock.json'))['servers']['tp-wizard-cap']['tools']; \
+assert 'approveSession' not in t and 'confirmSession' not in t, 'FEHLER: Schreibaktion im Agent!'; \
+assert 'applyDocumentValues' in t, 'FEHLER: applyDocumentValues fehlt!'; \
+print('OK — Agent-Tools:', sorted(t))"
+```
+
+---
+
+## Golden-Verifizierung (automatisiert)
+
+```bash
+cd assets/tp-wizard-cap
+npx jest test/rule-engine.test.js      # Golden: NRB_W806=110, NI_W2006=25; Operatoren/Dreiwert-Logik
+npx jest test/wizard-service.test.js   # Service, Zwei-Rollen-Workflow, applyDocumentValues
+```
+
+---
+
+## Bekannte Einschränkungen
+
+- Aktive Sessions leben während ihrer Laufzeit im RAM; nach CAP-Neustart werden sie aus der DB rekonstruiert (`answersJson` + `SessionAnswer`-Zeilen).
+- Hinterlegt ist nur das EWR-Regelwerk; andere Grundbauformen liefern keine TPs (Hinweis „Regelwerk fehlt").
+- Offene fachliche Punkte siehe [CAP-README](../assets/tp-wizard-cap/README.md) bzw. `regelwerk/README.md §5`.

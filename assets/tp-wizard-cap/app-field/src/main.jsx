@@ -1,5 +1,8 @@
 import '@ui5/webcomponents/dist/Assets.js';
 import '@ui5/webcomponents-fiori/dist/Assets.js';
+import '@ui5/webcomponents-icons/dist/microphone.js';
+import '@ui5/webcomponents-icons/dist/paper-plane.js';
+import '@ui5/webcomponents-fiori/dist/illustrations/SuccessScreen.js';
 import '@ui5/webcomponents-base/dist/FontFace.css';
 import { setTheme } from '@ui5/webcomponents-base/dist/config/Theme.js';
 import React from 'react';

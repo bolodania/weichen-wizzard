@@ -3,9 +3,10 @@ using from '../app/approve/annotations';
 
 service WizardService @(path: '/wizard') {
 
-  // Read-only reference data
-  @readonly entity ForlaTemplates    as projection on wizard.ForlaTemplate;
-  @readonly entity BasicFormMappings as projection on wizard.BasicFormMapping;
+  // Read-only reference data (Regelwerk-Katalog)
+  @readonly entity Eingaben     as projection on wizard.Eingaben;
+  @readonly entity Regeln       as projection on wizard.Regeln;
+  @readonly entity ForlaPlaetze as projection on wizard.ForlaPlaetze;
 
   // Sessions — draft-enabled so FE OData V4 renders the Edit/Save/Discard toolbar
   @odata.draft.enabled
@@ -28,9 +29,10 @@ service WizardService @(path: '/wizard') {
   // ── Agent / app-field actions (kept for backward compatibility) ───────────
 
   action createSession(
-    ds100        : String,
-    switchNumber : String,
-    basicForm    : String
+    ds100         : String,
+    switchNumber  : String,
+    basicForm     : String,
+    fertigmeldung : String
   ) returns {
     sessionId    : String;
     message      : String;
@@ -40,11 +42,23 @@ service WizardService @(path: '/wizard') {
     sessionId    : String,
     questionId   : String,
     answer       : String,
-    source       : String   // auto|agent-default|katrin-confirmed|katrin-corrected
+    source       : String   // auto|agent-default|human-confirmed|human-corrected
   ) returns {
     sessionId    : String;
     nextQuestion : String; // JSON
     tpPreview    : String; // JSON
+  };
+
+  // Agent übernimmt Werte aus der Fertigmeldung — jeder Wert braucht eine
+  // wörtliche Textstelle, die im Fertigmeldungstext vorkommt.
+  action applyDocumentValues(
+    sessionId : String,
+    values    : String   // JSON-Array [{ angabe, wert, textstelle }]
+  ) returns {
+    sessionId   : String;
+    uebernommen : String; // JSON-Array der übernommenen Werte
+    abgelehnt   : String; // JSON-Array der abgelehnten Werte mit Grund
+    tpPreview   : String; // JSON
   };
 
   action submitSession(

@@ -1,0 +1,21 @@
+{
+  "defaultRenderer": "fiori2",
+  "renderers": {
+    "fiori2": {
+      "componentData": {
+        "config": {
+          "enableSearch": false,
+          "rootIntent": "Sessions-display"
+        }
+      }
+    }
+  },
+  "applications": {
+    "Sessions-display": {
+      "additionalInformation": "SAPUI5.Component=tp.wizard.approve",
+      "applicationType": "URL",
+      "url": "/approve/webapp/",
+      "description": "TP-Wizard Freigabe"
+    }
+  }
+}
