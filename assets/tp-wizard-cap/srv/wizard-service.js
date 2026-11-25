@@ -4,7 +4,7 @@ const cds = require('@sap/cds');
 const { v4: uuidv4 } = require('uuid');
 const flService = require('./fl-service');
 const { ladeKatalog } = require('./lib/katalog');
-const { ableitenTps, naechsteFrage, vorgaben, validiere, uebernehmeDokumentwerte } = require('./lib/weiche');
+const { ableitenTps, naechsteFrage, vorgaben, validiere, uebernehmeDokumentwerte, normalisiert } = require('./lib/weiche');
 
 const LOG = cds.log('wizard-service');
 
@@ -110,9 +110,6 @@ async function _doApprove(sessionId, req) {
     return req.error(409, `Session hat Status "${session.status}" — approve erfordert "submitted" oder "editing"`);
   }
 
-  session.status = 'approved';
-  session.approvedAt = new Date().toISOString();
-
   const db = await cds.connect.to('db');
 
   // Read answers directly from SessionAnswer rows — authoritative after FE draft save.
@@ -129,25 +126,27 @@ async function _doApprove(sessionId, req) {
   }
 
   const katalog = await ladeKatalog();
-  const { tps } = ableitenTps(katalog, session);
+  const { tps, offeneAngaben } = ableitenTps(katalog, session);
+  if (offeneAngaben.length) {
+    return req.reject(422, `Pflichtangaben fehlen: ${offeneAngaben.join(', ')}`);
+  }
 
   const validation = validiere(tps);
   if (!validation.valid) {
-    session.status = 'failed';
     LOG.warn(`[M4.missed]: TP-Validierung fehlgeschlagen: ${validation.warnings.join(', ')}`);
     return req.error(422, `TP-Struktur ungültig: ${validation.warnings.join(', ')}`);
   }
 
   let result;
+  session.approvedAt = new Date().toISOString();
   try {
     result = await flService.bulkCreateFunctionalLocations(tps);
   } catch (err) {
-    session.status = 'failed';
     LOG.error(`[M4.missed]: SAP-Schreibzugriff fehlgeschlagen: ${err.message}`);
-    return req.error(502, `SAP-Schreibzugriff fehlgeschlagen: ${err.message}`);
+    result = { created: [], failed: tps.map((tp) => ({ tpKey: tp.tpKey, error: err.message })) };
   }
 
-  session.status = 'created';
+  session.status = result.failed.length ? 'failed' : 'created';
   session.derivedTPCount = tps.length;
   session.creationResult = JSON.stringify(result);
 
@@ -167,8 +166,12 @@ async function _doApprove(sessionId, req) {
     }),
   );
 
-  LOG.info(`[M4.achieved]: SAP-Schreibzugriff A21 erfolgreich — TPs angelegt: ${tps.length}`);
-  LOG.info(`[M5.achieved]: Zwei-Rollen-Flow vollständig — Katrin submitted, Thomas approved, SAP write success`);
+  if (result.failed.length) {
+    LOG.warn(`[M4.missed]: ${result.failed.length} TPs konnten nicht angelegt werden`);
+  } else {
+    LOG.info(`[M4.achieved]: SAP-Schreibzugriff A21 erfolgreich — TPs angelegt: ${tps.length}`);
+    LOG.info(`[M5.achieved]: Zwei-Rollen-Flow vollständig — Katrin submitted, Thomas approved, SAP write success`);
+  }
 
   return {
     sessionId,
@@ -179,6 +182,7 @@ async function _doApprove(sessionId, req) {
 }
 
 module.exports = (srv) => {
+  srv.on('getLocationValues', require('./lib/location-value-help').getLocationValues);
   // ── Health check ──────────────────────────────────────────────────────────
   srv.on('health', () => JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }));
 
@@ -188,6 +192,10 @@ module.exports = (srv) => {
     if (!ds100 || !switchNumber || !basicForm) {
       return req.error(400, 'ds100, switchNumber und basicForm sind Pflichtfelder');
     }
+    if (!/^\d{1,7}$/.test(switchNumber)) {
+      return req.reject(400, 'Weichennummer muss aus 1 bis 7 Ziffern bestehen');
+    }
+    if (ds100.length > 10) return req.reject(400, 'Betriebsstelle darf maximal 10 Zeichen enthalten');
 
     const sessionId = uuidv4();
     SESSION_STORE.set(sessionId, {
@@ -209,7 +217,7 @@ module.exports = (srv) => {
   srv.on('submitAnswer', async (req) => {
     const { sessionId, questionId, answer, source } = req.data;
     const resolvedSource = source || 'human-confirmed';
-    const session = SESSION_STORE.get(sessionId);
+    const session = await _getSession(sessionId);
     if (!session) return req.error(404, `Session ${sessionId} nicht gefunden`);
     if (session.status !== 'open') return req.error(409, 'Session ist bereits abgeschlossen');
 
@@ -242,7 +250,7 @@ module.exports = (srv) => {
   // ── Apply Document Values (agent reads Fertigmeldung — each value needs a verbatim citation) ──
   srv.on('applyDocumentValues', async (req) => {
     const { sessionId } = req.data;
-    const session = SESSION_STORE.get(sessionId);
+    const session = await _getSession(sessionId);
     if (!session) return req.error(404, `Session ${sessionId} nicht gefunden`);
     if (session.status !== 'open') return req.error(409, 'Session ist bereits abgeschlossen');
 
@@ -283,7 +291,7 @@ module.exports = (srv) => {
 
   // ── Get Next Question ─────────────────────────────────────────────────────
   srv.on('getNextQuestion', async (req) => {
-    const session = SESSION_STORE.get(req.data.sessionId);
+    const session = await _getSession(req.data.sessionId);
     if (!session) return req.error(404, `Session ${req.data.sessionId} nicht gefunden`);
     const katalog = await ladeKatalog();
     return JSON.stringify(naechsteFrage(katalog, session));
@@ -291,7 +299,7 @@ module.exports = (srv) => {
 
   // ── Get TP Preview ────────────────────────────────────────────────────────
   srv.on('getTPPreview', async (req) => {
-    const session = SESSION_STORE.get(req.data.sessionId);
+    const session = await _getSession(req.data.sessionId);
     if (!session) return req.error(404, `Session ${req.data.sessionId} nicht gefunden`);
     const katalog = await ladeKatalog();
     const { tps } = ableitenTps(katalog, session);
@@ -300,7 +308,7 @@ module.exports = (srv) => {
 
   // ── Get Open Fields ───────────────────────────────────────────────────────
   srv.on('getOpenFields', async (req) => {
-    const session = SESSION_STORE.get(req.data.sessionId);
+    const session = await _getSession(req.data.sessionId);
     if (!session) return req.error(404, `Session ${req.data.sessionId} nicht gefunden`);
     const katalog = await ladeKatalog();
     const { offeneAngaben } = ableitenTps(katalog, session);
@@ -309,10 +317,10 @@ module.exports = (srv) => {
 
   // ── Export CSV ────────────────────────────────────────────────────────────
   srv.on('exportSessionCSV', async (req) => {
-    const session = SESSION_STORE.get(req.data.sessionId);
+    const session = await _getSession(req.data.sessionId);
     if (!session) return req.error(404, `Session ${req.data.sessionId} nicht gefunden`);
 
-    const tps = session.tpPreview || [];
+    const { tps } = ableitenTps(await ladeKatalog(), session);
     const lines = ['tpKey,tpLabel,area,posNr,planergruppe,isAutomatic'];
     for (const tp of tps) {
       lines.push(
@@ -340,7 +348,7 @@ module.exports = (srv) => {
   // ── Bulk Submit With Defaults (agent shortcut — applies remaining defaults then submits) ──
   srv.on('bulkSubmitWithDefaults', async (req) => {
     const { sessionId } = req.data;
-    const session = SESSION_STORE.get(sessionId);
+    const session = await _getSession(sessionId);
     if (!session) return req.error(404, `Session ${sessionId} nicht gefunden`);
     if (session.status !== 'open') {
       return req.error(409, `Session hat Status "${session.status}" — bulkSubmitWithDefaults erfordert "open"`);
@@ -398,7 +406,7 @@ module.exports = (srv) => {
   // ── Submit Session (Katrin hands off to Thomas) ───────────────────────────
   srv.on('submitSession', async (req) => {
     const { sessionId } = req.data;
-    const session = SESSION_STORE.get(sessionId);
+    const session = await _getSession(sessionId);
     if (!session) return req.error(404, `Session ${sessionId} nicht gefunden`);
     if (session.status !== 'open') return req.error(409, `Session hat Status "${session.status}" — submitSession erfordert "open"`);
 
@@ -528,12 +536,15 @@ module.exports = (srv) => {
     const sessionRow = mem || { basicForm: row.basicForm, ds100: row.ds100, switchNumber: row.switchNumber, answers };
     const { tps } = ableitenTps(katalog, { ...sessionRow, answers });
     await _upsertDerivedTPs(db, sessionId, tps);
+    await db.run(UPDATE('tp.wizard.WizardSession').set({ derivedTPCount: tps.length }).where({ sessionId }));
     if (mem) mem.tpPreview = tps;
   });
 
   // ── Edit Answer via OData PATCH (Fiori Elements inline editing) ───────────
   srv.on('UPDATE', 'SessionAnswers', async (req) => {
-    const { session_sessionId: sessionId, questionId } = req.params[0];
+    const keys = req.params[req.params.length - 1];
+    const sessionId = keys.session_sessionId || req.params[0].sessionId;
+    const { questionId } = keys;
     const { answer } = req.data;
 
     const session = await _getSession(sessionId);
@@ -561,10 +572,16 @@ module.exports = (srv) => {
         answer,
         source: 'thomas-edited',
         herkunft: 'Manuell',
+        beleg: null,
         agentProposal: session.answers[existingIdx]?.agentProposal || null,
       }),
     );
 
+    const { tps } = ableitenTps(await ladeKatalog(), session);
+    session.tpPreview = tps;
+    session.derivedTPCount = tps.length;
+    await _upsertDerivedTPs(db, sessionId, tps);
+    await db.run(UPDATE('tp.wizard.WizardSession').set({ derivedTPCount: tps.length }).where({ sessionId }));
     return req.data;
   });
 
@@ -615,6 +632,8 @@ module.exports = (srv) => {
       return req.error(400, 'sessionId, filename und contentB64 sind Pflichtfelder');
     }
 
+    const session = await _getSession(sessionId);
+    if (!session) return req.reject(404, `Session ${sessionId} nicht gefunden`);
     const db = await cds.connect.to('db');
 
     // Decode base64 → Buffer
@@ -623,22 +642,21 @@ module.exports = (srv) => {
 
     // Best-effort text extraction: try pdftotext (poppler), fall back to raw string scan
     let extractedText = '';
+    const fs = require('fs');
+    const tmpIn = require('path').join(require('os').tmpdir(), `tp-doc-${uuidv4()}.pdf`);
     try {
-      const { execSync } = require('child_process');
-      const tmp = require('os').tmpdir();
-      const fs = require('fs');
-      const tmpIn = `${tmp}/tp-doc-${Date.now()}.pdf`;
+      const { execFileSync } = require('child_process');
       fs.writeFileSync(tmpIn, content);
-      extractedText = execSync(`pdftotext "${tmpIn}" -`, { timeout: 10000 }).toString();
-      fs.unlinkSync(tmpIn);
+      extractedText = execFileSync('pdftotext', [tmpIn, '-'], { timeout: 10000 }).toString();
     } catch (_) {
       // pdftotext not available — use raw text extraction as fallback
       extractedText = content.toString('latin1').replace(/[^\x20-\x7E\n\r\t\u00C0-\u00FF]/g, ' ');
+    } finally {
+      if (fs.existsSync(tmpIn)) fs.unlinkSync(tmpIn);
     }
 
     // Run rule-based analysis
     const katalog = await ladeKatalog();
-    const session = await _getSession(sessionId);
     const analysisJson = session
       ? JSON.stringify(_analyseDocument(katalog, session, extractedText))
       : JSON.stringify({ error: 'Session nicht gefunden' });
@@ -691,7 +709,7 @@ module.exports = (srv) => {
     const { sessionId, contextId, message } = req.data;
     if (!sessionId || !message) return req.error(400, 'sessionId und message sind Pflichtfelder');
 
-    const agentUrl = process.env.AGENT_URL || 'http://localhost:5000';
+    const agentClient = require('./lib/agent-client');
 
     // Build a context-enriched message: prepend session summary so the agent
     // knows which session Thomas is looking at.
@@ -704,6 +722,7 @@ module.exports = (srv) => {
       );
       const analysis = docRow?.analysisJson ? JSON.parse(docRow.analysisJson) : null;
       sessionCtx =
+        `Session-Id: ${sessionId}\nLade approver-assist für die Prüfung dieser bestehenden Session. Keine neue Session erstellen.\n` +
         `[Kontext: Thomas-Chat für Session ${session.ds100} Weiche ${session.switchNumber} (${session.basicForm}), ` +
         `Status: ${session.status}, TPs: ${session.derivedTPCount ?? '?'}` +
         (analysis ? `, Analyse: ${analysis.summary ?? JSON.stringify(analysis).slice(0, 200)}` : '') +
@@ -728,23 +747,32 @@ module.exports = (srv) => {
     let reply = '';
     let newContextId = contextId || '';
     try {
-      const http = require('http');
+      const agentAuthorization = await agentClient.authorization(req.headers.authorization);
       const payload = JSON.stringify(body);
       const agentReply = await new Promise((resolve, reject) => {
-        const urlObj = new URL(agentUrl);
+        const urlObj = agentClient.agentUrl();
+        const http = require(urlObj.protocol === 'https:' ? 'https' : 'http');
         const options = {
           hostname: urlObj.hostname,
-          port: urlObj.port || 80,
+          port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
           path: urlObj.pathname || '/',
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+          headers: {
+            'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload),
+            ...(agentAuthorization ? { Authorization: agentAuthorization } : {}),
+          },
+          timeout: 120000,
         };
         const r = http.request(options, (res) => {
           let data = '';
           res.on('data', (chunk) => { data += chunk; });
-          res.on('end', () => resolve(data));
+          res.on('end', () => {
+            if (res.statusCode >= 400) reject(new Error(`Agent HTTP ${res.statusCode}`));
+            else resolve(data);
+          });
         });
         r.on('error', reject);
+        r.on('timeout', () => r.destroy(new Error('Agent timeout')));
         r.write(payload);
         r.end();
       });
@@ -766,11 +794,14 @@ module.exports = (srv) => {
 // ── Regelwerk-Analyse eines Dokuments ─────────────────────────────────────────
 function _analyseDocument(katalog, session, extractedText) {
   const { ableitenTps } = require('./lib/weiche');
-  const { tps, offeneAngaben } = ableitenTps(katalog, session);
+  const { tps, offeneAngaben, angaben } = ableitenTps(katalog, session);
 
   // Alle Pflicht-TPs (Regeln ohne optionale Bedingung) vs. tatsächlich abgeleitete
+  const { erfuellt } = require('./lib/engine');
   const allePflichtRegeln = katalog.regeln.filter(
-    (r) => r.giltFuer && r.giltFuer.includes(session.basicForm) && !r.hinweis?.toLowerCase().includes('optional'),
+    (r) => r.nr !== 1 && (r.giltFuer || '').split(/[;, ]+/).includes(session.basicForm) &&
+      erfuellt(angaben, r.bedingungen || []) !== false &&
+      (/^\d+$/.test(r.anzahl) ? Number(r.anzahl) > 0 : angaben[r.anzahl] === undefined || Number(angaben[r.anzahl]) > 0),
   );
 
   const abgeleiteteSchluessel = new Set(tps.map((t) => t.muster));
@@ -804,7 +835,8 @@ function _analyseDocument(katalog, session, extractedText) {
 
   // Prüfe ob Werte aus dem Dokument-Text belegt sind
   const nichtBelegte = (session.answers || []).filter(
-    (a) => a.herkunft === 'Dokument' && a.beleg && !extractedText.includes(a.beleg),
+    (a) => a.herkunft === 'Dokument' && a.beleg &&
+      !normalisiert(extractedText).includes(normalisiert(a.beleg.replace(/^Textstelle:\s*/, ''))),
   );
 
   const summary =
@@ -820,7 +852,10 @@ function _analyseDocument(katalog, session, extractedText) {
     pflichtTps,
     optionalTps,
     fehlendeHinweise,
-    offeneAngaben,
+    offeneAngaben: offeneAngaben.map((questionId) => ({
+      questionId,
+      hint: katalog.eingaben.find((e) => e.ID === questionId)?.frage || questionId,
+    })),
     nichtBelegteWerte: nichtBelegte.map((a) => ({
       questionId: a.questionId,
       answer: a.answer,

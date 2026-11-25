@@ -1,7 +1,7 @@
 using { tp.wizard as wizard } from '../db/schema';
 using from '../app/approve/annotations';
 
-service WizardService @(path: '/wizard') {
+service WizardService @(path: '/wizard', requires: ['WizardUser', 'CAPTools']) {
 
   // Read-only reference data (Regelwerk-Katalog)
   @readonly entity Eingaben     as projection on wizard.Eingaben;
@@ -14,6 +14,7 @@ service WizardService @(path: '/wizard') {
   @Capabilities.InsertRestrictions.Insertable: false
   entity Sessions as projection on wizard.WizardSession
     actions {
+      @requires: 'WizardUser'
       action approve() returns {
         sessionId  : String;
         created    : String; // JSON array
@@ -129,6 +130,7 @@ service WizardService @(path: '/wizard') {
   };
 
   // Unbound approve — still available for legacy callers
+  @requires: 'WizardUser'
   action approveSession(
     sessionId    : String
   ) returns {
@@ -147,4 +149,13 @@ service WizardService @(path: '/wizard') {
   function exportSessionCSV(sessionId: String)  returns String; // CSV string
 
   function health() returns String;
+
+  type LocationValue {
+    code : String;
+    description : String;
+  }
+  function getLocationValues(search : String, skip : Integer) returns {
+    items : many LocationValue;
+    hasMore : Boolean;
+  };
 }

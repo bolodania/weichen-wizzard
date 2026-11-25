@@ -10,6 +10,7 @@ import { ChatThread }     from './components/ChatThread.jsx';
 import { MessageInput }   from './components/MessageInput.jsx';
 import { TPPreviewSheet } from './components/TPPreviewSheet.jsx';
 import { SubmitSummary }  from './components/SubmitSummary.jsx';
+import { LocationValueHelp } from './components/LocationValueHelp.jsx';
 
 function AppHeader({ title, subtitle }) {
   return (
@@ -71,10 +72,16 @@ export default function App() {
           >
             <FormGroup headerText="Standort & Typ">
               <FormItem label={<Label required showColon>Betriebsstelle (DS100)</Label>}>
-                <Input placeholder="z.B. NI" value={ds100} onInput={e => setDs100(e.target.value)} />
+                <LocationValueHelp value={ds100} onSelect={setDs100} />
               </FormItem>
               <FormItem label={<Label required showColon>Weichennummer</Label>}>
-                <Input placeholder="z.B. 2006" value={switchNum} onInput={e => setSwitchNum(e.target.value)} />
+                <Input placeholder="z.B. 2006" value={switchNum} maxlength={7}
+                  accessibleName="Weichennummer (nur Ziffern)"
+                  onInput={e => {
+                    const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 7);
+                    e.target.value = digits;
+                    setSwitchNum(digits);
+                  }} />
               </FormItem>
               <FormItem label={<Label required showColon>Grundbauform</Label>}>
                 <Select onChange={e => setBasicForm(e.detail.selectedOption.getAttribute('data-value'))}>
@@ -88,7 +95,7 @@ export default function App() {
           <div style={{ padding: '0 1rem 1.5rem' }}>
             <Button
               design="Emphasized"
-              disabled={!ds100 || !switchNum}
+              disabled={!ds100 || !/^\d{1,7}$/.test(switchNum)}
               style={{ width: '100%' }}
               onClick={() => start({ ds100, switchNumber: switchNum, basicForm })}
             >

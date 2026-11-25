@@ -50,14 +50,82 @@ Das Skript schreibt `db/data/tp.wizard.{Eingaben,Regeln,Bedingungen,ForlaPlaetze
 
 ## Starten
 
+Voraussetzung: **Node.js >= 22.12**. Für die lokale PoC-Demo bleibt SQLite im Speicher;
+ein Neustart setzt neu erfasste Daten zurück. Nur **EWR** ist fachlich unterstützt.
+
 ```bash
 npm install
-npm start          # bzw. cds watch für Entwicklung
+FL_MOCK=true npm start  # SAP-Anlage simulieren; alternativ FL_MOCK=true npm run dev
 ```
 
 Der SAP-Schreibpfad ist über `FL_MOCK=true` abschaltbar (Offline-Demo/Tests).
 
+```bash
+npm run build      # CAP + aktuelle app-field bauen (nicht den alten React-Wizard)
+```
+
+- Felderfassung nach dem Build: `http://localhost:4004/field/`
+- Freigabe: `http://localhost:4004/approve/webapp/index.html`
+- Der Chat benötigt weiterhin den separat gestarteten Python-Agenten. `AGENT_URL`
+  ist standardmäßig `http://127.0.0.1:5000/`; CAP leitet `/agent` dorthin weiter.
+  Die IPv4-Adresse vermeidet unter macOS den AirPlay-Dienst, der auf Port 5000
+  über `localhost`/IPv6 statt des Python-Agenten antworten kann (HTTP 403).
+- Die Einreichung darf offene Angaben zur Prüfung enthalten. **Freigabe** wird dagegen
+  bei fehlenden Pflichtangaben oder leerer TP-Struktur mit HTTP 422 abgewiesen.
+- PDF-Textextraktion nutzt optional `pdftotext` (Poppler). Ohne dieses Programm ist
+  die Extraktion nur ein Best-effort-Fallback, kein zuverlässiger PDF-Parser.
+- Echter SAP-Zugriff ist nicht Bestandteil dieser Offline-Demo; externe CDS-Modelle
+  und die Payload-/Destination-Anbindung müssen dafür separat vervollständigt werden.
+
+## Cloud Foundry: XSUAA HTTPS deployment
+
+**Deployment has changed:** use the [current CAP + Python + Approuter guide](../../docs/README-deployment-cf.md).
+Run `cf push` from each asset folder; the manifests bind `tp-wizard-xsuaa`. Cloud auth is
+XSUAA, not mocked. Browser access is through Approuter, and no internal routes or
+network policies are required.
+
 ## Tests
+
+### Destination-basierte Value Help (erstes Feld)
+
+Die Auswahl lädt über CAP und SAP Cloud SDK aus einer BTP-Destination. Der Browser
+erhält nur Code/Bezeichnung, keine Destination-Credentials. Suchtext und Seiten werden
+serverseitig an OData weitergegeben (30 Einträge pro Seite).
+
+Die Beispieleinstellung verwendet `RI4DEV400_PP` und
+`/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner` mit den Feldern
+`BusinessPartner` und `BusinessPartnerFullName`. **Business Partner sind keine DS100-
+Betriebsstellen**: dies ist ausschließlich eine technische PoC-Quelle. Vor einer
+fachlichen Demo die Quelle auf echte Betriebsstellen-Codes umstellen; der ausgewählte
+Code wird unverändert als `ds100` verwendet (maximal 10 Zeichen).
+
+Konfiguration ohne Codeänderungen, siehe `.env.example`:
+
+| Variable | Bedeutung |
+|---|---|
+| `VALUE_HELP_DESTINATION` | BTP-Destination-Name |
+| `VALUE_HELP_SERVICE_PATH` | Server-relativer Service-Pfad |
+| `VALUE_HELP_ENTITY_SET` | EntitySet für die Auswahl |
+| `VALUE_HELP_KEY_FIELD` | Eigenschaft mit dem auszuwählenden Code |
+| `VALUE_HELP_TEXT_FIELD` | Eigenschaft mit der Bezeichnung |
+| `VALUE_HELP_ODATA_VERSION` | `2` oder `4` |
+
+CAP lädt eine lokale `.env`; danach Server neu starten. Alternativ Variablen in der
+Deployment-Umgebung setzen. Standardwerte liegen unter `cds.valueHelp` in `package.json`.
+
+**Voraussetzungen für RI4DEV400_PP:** Die Destination ist `OnPremise` mit
+`PrincipalPropagation`. Es werden Destination-Service- und Connectivity-Service-Bindings,
+ein erreichbarer Cloud Connector und ein authentifizierter Benutzer mit gültigem JWT
+benötigt. CAP übergibt das eingehende Bearer-JWT an die Destination-Auflösung.
+Eine lokale CAP-Session mit Mock-Authentifizierung stellt **kein solches JWT** bereit.
+Die Destination im Cockpit allein genügt deshalb nicht für den lokalen Zugriff.
+Für Hybridtests die Services per `cds bind` anbinden und einen authentifizierten Zugang
+(z. B. Approuter) verwenden, oder eine separate, für lokale Tests geeignete Destination
+konfigurieren. Keine Credentials ins Frontend oder Repository kopieren.
+
+`FL_MOCK=true` betrifft nur TP-Anlage, nicht die Value Help. Bei fehlender Verbindung
+zeigt die Auswahl einen Fehler statt erfundener Werte. Die Weichennummer akzeptiert
+nur 1–7 Ziffern, inklusive führender Nullen; dies wird auch im Backend geprüft.
 
 ```bash
 npx jest test/rule-engine.test.js     # Golden-Kontrakt + Operatoren/Dreiwert-Logik

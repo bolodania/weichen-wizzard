@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
+  base: '/field/',
   plugins: [react()],
   server: {
     port: 5173,
@@ -9,7 +10,7 @@ export default defineConfig({
     proxy: {
       '/wizard': 'http://localhost:4004',
       '/agent': {
-        target: 'http://localhost:5000',
+        target: 'http://127.0.0.1:5000',
         rewrite: (path) => path.replace(/^\/agent/, '') || '/',
       },
     }

@@ -1,0 +1,27 @@
+# Dependencies are installed for Linux by the Node.js buildpack.
+node_modules/
+app/node_modules/
+app-field/node_modules/
+
+# Local credentials and hybrid bindings must never be uploaded.
+.env
+.env.*
+default-env.json
+.cdsrc-private.json
+creds.json
+*.pem
+*.key
+
+# Generated CAP output is not used: this manifest deploys the source project.
+gen/
+coverage/
+test/
+.git/
+.vscode/
+.DS_Store
+db/*.db
+db/*.sqlite
+
+# Keep app/approve for CDS annotations and static Fiori files.
+# Keep app-field/dist: this is the built field app served by server.js.
+app/build/

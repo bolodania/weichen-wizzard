@@ -2,9 +2,29 @@
 
 process.env.FL_MOCK = 'true';
 process.env.CDS_IGNORE_DUPLICATE = 'true';
+// Integration tests must not invoke a developer's live LLM agent on port 5000.
+process.env.AGENT_URL = 'http://127.0.0.1:1';
 
 const cds = require('@sap/cds');
-const { GET, POST } = cds.test().in(__dirname + '/..');
+cds.env.requires.auth = {
+  kind: 'mocked', users: {
+    tester: { password: 'test', roles: ['WizardUser'] },
+    tools: { password: 'test', roles: ['CAPTools'] },
+  },
+};
+const testServer = cds.test().in(__dirname + '/..');
+const { GET, POST, PATCH } = testServer;
+beforeAll(() => {
+  testServer.axios.defaults.auth = { username: 'tester', password: 'test' };
+});
+const seedSessions = require('../db/data/tp.wizard.WizardSession.json');
+const flService = require('../srv/fl-service');
+
+async function completeSession(sid) {
+  for (const { questionId, answer, source } of JSON.parse(seedSessions[0].answersJson)) {
+    await POST('/wizard/submitAnswer', { sessionId: sid, questionId, answer, source });
+  }
+}
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 async function createSession(ds100, switchNumber, basicForm, fertigmeldung) {
@@ -132,8 +152,7 @@ describe('editAnswer', () => {
 describe('approveSession', () => {
   test('gibt eingereichte Session frei und liefert angelegte TPs (Mock)', async () => {
     const sid = await createSession('NI', '4001', 'EWR');
-    await POST('/wizard/submitAnswer', { sessionId: sid, questionId: 'zgv_ve', answer: '1', source: 'human-confirmed' });
-    await POST('/wizard/submitAnswer', { sessionId: sid, questionId: 'hz_bauart', answer: '0', source: 'human-confirmed' });
+    await completeSession(sid);
     await POST('/wizard/submitSession', { sessionId: sid });
     const res = await POST('/wizard/approveSession', { sessionId: sid });
     expect(res.status).toBe(200);
@@ -145,6 +164,123 @@ describe('approveSession', () => {
     await expect(POST('/wizard/approveSession', { sessionId: sid })).rejects.toMatchObject({
       response: { status: 409 },
     });
+  });
+});
+
+describe('PoC correctness regressions', () => {
+  test('technical tool role cannot approve sessions', async () => {
+    await expect(POST('/wizard/approveSession', { sessionId: seedSessions[0].sessionId }, {
+      auth: { username: 'tools', password: 'test' },
+    })).rejects.toMatchObject({ response: { status: 403 } });
+  });
+  test.each(['abc', '20a06', '-1', '1.5', '1e3', '12345678'])('rejects invalid switch number %s', async (value) => {
+    await expect(createSession('NI', value, 'EWR')).rejects.toMatchObject({ response: { status: 400 } });
+  });
+
+  test('value help endpoint maps destination values without a live backend', async () => {
+    const client = require('@sap-cloud-sdk/http-client');
+    const spy = jest.spyOn(client, 'executeHttpRequest').mockResolvedValueOnce({
+      data: { d: { results: [{ BusinessPartner: '100', BusinessPartnerFullName: 'Example partner' }] } },
+    });
+    try {
+      const response = await GET("/wizard/getLocationValues(search='100',skip=0)");
+      expect(response.data.items).toEqual([{ code: '100', description: 'Example partner' }]);
+    } finally { spy.mockRestore(); }
+  });
+  test('seeded session helper endpoints and CSV work without prior edits', async () => {
+    const sid = seedSessions[0].sessionId;
+    expect(parseStringResponse(await GET(`/wizard/getTPPreview(sessionId='${sid}')`))).toHaveLength(25);
+    expect(parseStringResponse(await GET(`/wizard/getOpenFields(sessionId='${sid}')`))).toEqual([]);
+    expect((await GET(`/wizard/exportSessionCSV(sessionId='${sid}')`)).data.value.split('\n')).toHaveLength(26);
+    expect((await GET(`/wizard/getNextQuestion(sessionId='${sid}')`)).status).toBe(200);
+  });
+
+  test('incomplete approval is rejected without changing submitted state', async () => {
+    const sid = await createSession('NI', '4100', 'EWR');
+    await POST('/wizard/submitSession', { sessionId: sid });
+    await expect(POST('/wizard/approveSession', { sessionId: sid })).rejects.toMatchObject({ response: { status: 422 } });
+    const row = await GET(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)`);
+    expect(row.data.status).toBe('submitted');
+    await POST('/wizard/editAnswer', { sessionId: sid, questionId: 'zgv_ve', answer: '1' });
+  });
+
+  test('unsupported basic form cannot be approved as an empty success', async () => {
+    const sid = await createSession('NI', '4101', 'EWL');
+    await completeSession(sid);
+    await POST('/wizard/submitSession', { sessionId: sid });
+    await expect(POST('/wizard/approveSession', { sessionId: sid })).rejects.toMatchObject({ response: { status: 422 } });
+  });
+
+  test('partial SAP failure is persisted as failed, never created', async () => {
+    const sid = await createSession('NI', '4102', 'EWR');
+    await completeSession(sid);
+    await POST('/wizard/submitSession', { sessionId: sid });
+    const spy = jest.spyOn(flService, 'bulkCreateFunctionalLocations').mockResolvedValueOnce({
+      created: [], failed: [{ tpKey: 'test', error: 'SAP unavailable' }],
+    });
+    try {
+      const result = await POST('/wizard/approveSession', { sessionId: sid });
+      expect(JSON.parse(result.data.failed)).toHaveLength(1);
+      expect((await GET(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)`)).data.status).toBe('failed');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test('thrown SAP failure is persisted and blocks repeat approval', async () => {
+    const sid = await createSession('NI', '4106', 'EWR');
+    await completeSession(sid);
+    await POST('/wizard/submitSession', { sessionId: sid });
+    const spy = jest.spyOn(flService, 'bulkCreateFunctionalLocations').mockRejectedValueOnce(new Error('Connection refused'));
+    try {
+      const result = await POST('/wizard/approveSession', { sessionId: sid });
+      expect(JSON.parse(result.data.failed)).toHaveLength(25);
+      expect((await GET(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)`)).data.status).toBe('failed');
+      await expect(POST('/wizard/approveSession', { sessionId: sid })).rejects.toMatchObject({ response: { status: 409 } });
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test('direct answer PATCH recalculates persisted TP count and preview', async () => {
+    const sid = await createSession('NI', '4103', 'EWR');
+    await completeSession(sid);
+    await POST('/wizard/submitSession', { sessionId: sid });
+    await PATCH(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)/answers(session_sessionId='${sid}',questionId='zgv_ve',IsActiveEntity=true)`, { answer: '2' });
+    const row = await GET(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)`);
+    const tps = await GET(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)/tps`);
+    expect(row.data.derivedTPCount).toBe(29);
+    expect(tps.data.value).toHaveLength(29);
+    expect(parseStringResponse(await GET(`/wizard/getTPPreview(sessionId='${sid}')`))).toHaveLength(29);
+  });
+
+  test('Fiori draft edit/save recalculates active answers and TP count', async () => {
+    const sid = await createSession('NI', '4104', 'EWR');
+    await completeSession(sid);
+    await POST('/wizard/submitSession', { sessionId: sid });
+    const active = `/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)`;
+    await POST(`${active}/WizardService.draftEdit`, { PreserveChanges: false });
+    await PATCH(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=false)/answers(session_sessionId='${sid}',questionId='zgv_ve',IsActiveEntity=false)`, { answer: '2' });
+    expect((await GET(active)).data.derivedTPCount).toBe(25);
+    await POST(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=false)/WizardService.draftActivate`, {});
+    expect((await GET(active)).data.derivedTPCount).toBe(29);
+    const result = await POST(`${active}/WizardService.approve`, {});
+    expect(JSON.parse(result.data.created)).toHaveLength(29);
+  });
+
+  test('document analysis accepts wrapped citations and explains open inputs', async () => {
+    const text = 'Die Zungenvorrichtung hat 8 Verschlussebenen.';
+    const sid = await createSession('NI', '4105', 'EWR', text);
+    await POST('/wizard/applyDocumentValues', {
+      sessionId: sid, values: JSON.stringify([{ angabe: 'zgv_ve', wert: '8', textstelle: '8 Verschlussebenen' }]),
+    });
+    const result = await POST('/wizard/uploadDocument', {
+      sessionId: sid, filename: 'citation.pdf', contentB64: Buffer.from(text).toString('base64'),
+    });
+    const analysis = JSON.parse(result.data.analysisJson);
+    expect(analysis.nichtBelegteWerte).toEqual([]);
+    expect(analysis.offeneAngaben[0]).toEqual({ questionId: expect.any(String), hint: expect.any(String) });
+    expect(analysis.fehlendeHinweise.some((r) => r.muster === '')).toBe(false);
   });
 });
 

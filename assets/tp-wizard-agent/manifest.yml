@@ -1,0 +1,24 @@
+# XSUAA-protected HTTPS agent; AI Core credentials are injected separately.
+applications:
+  - name: tp-wizard-agent
+    path: .
+    memory: 1G
+    disk_quota: 2G
+    instances: 1
+    buildpacks:
+      - python_buildpack
+    command: python app/main.py --host 0.0.0.0
+    random-route: true
+    health-check-type: port
+    timeout: 180
+    services:
+      - tp-wizard-xsuaa
+    env:
+      HOST: 0.0.0.0
+      PYTHONUNBUFFERED: "1"
+      # Uses mcp-mock.json tools calling real CAP APIs, not a mocked LLM.
+      IBD_TESTING: "1"
+      AUTH_MODE: xsuaa
+      AICORE_RESOURCE_GROUP: default
+# Cloud Foundry provides PORT. Configure AICORE_* credentials before starting.
+# Set CAP_BASE_URL and AGENT_PUBLIC_URL after push using the assigned HTTPS routes.

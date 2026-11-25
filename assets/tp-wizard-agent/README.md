@@ -4,6 +4,15 @@ Ein KI-Agent fuer DB InfraGO, der Mitarbeitern hilft, neue Weichen in SAP Fahrwe
 
 ## Overview
 
+## BTP Cloud Foundry deployment
+
+The asset includes `manifest.yml`, `runtime.txt` (Python 3.12), and `.cfignore`.
+Follow the [complete CAP + Python deployment guide](../../docs/README-deployment-cf.md)
+to inject AI Core credentials, deploy both applications, configure HTTPS routes
+and XSUAA authentication, and access the PoC through Approuter. Local `.env` files
+and virtual environments are excluded from upload. HTTPS routes require tokens;
+no CF network policies are needed.
+
 Uses A2A Protocol, LangGraph, LiteLLM, and SAP Cloud SDK.
 
 ## Structure

@@ -26,6 +26,7 @@ from typing import Any
 from urllib.parse import quote
 
 import httpx
+from xsuaa_auth import cap_headers
 from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import Field, create_model
 from sap_cloud_sdk.agentgateway import create_client
@@ -136,6 +137,7 @@ def _build_mock_tools() -> list[BaseTool]:
                         if v is not None:
                             endpoint = endpoint.replace(f"{{{k}}}", str(v))
                     url = f"{CAP_BASE_URL}{endpoint}"
+                    headers = await cap_headers()
                     async with httpx.AsyncClient() as client:
                         if _meth == "GET":
                             filter_parts = [
@@ -145,10 +147,10 @@ def _build_mock_tools() -> list[BaseTool]:
                                 filter_expr = " and ".join(filter_parts)
                                 sep = "&" if "?" in url else "?"
                                 url = f"{url}{sep}$filter={quote(filter_expr, safe='')}"
-                            resp = await client.get(url, timeout=30.0)
+                            resp = await client.get(url, headers=headers, timeout=30.0)
                         else:
                             body = {k: v for k, v in kwargs.items() if v is not None}
-                            resp = await client.post(url, json=body, timeout=30.0)
+                            resp = await client.post(url, json=body, headers=headers, timeout=30.0)
                     resp.raise_for_status()
                     return resp.text
 

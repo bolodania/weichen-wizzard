@@ -16,6 +16,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from agent_executor import AgentExecutor
 from mcp_providers.agw import set_user_token, reset_user_token
+from xsuaa_auth import XsuaaMiddleware, enabled, credentials
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,6 +29,10 @@ PORT = int(os.environ.get("PORT", "5000"))
 @click.option("--host", default=HOST)
 @click.option("--port", default=PORT)
 def main(host: str, port: int):
+    if enabled():
+        credentials()
+        if os.environ.get("CAP_BASE_URL") and not os.environ["CAP_BASE_URL"].startswith("https://"):
+            raise RuntimeError("Cloud CAP_BASE_URL must use HTTPS")
     skill = AgentSkill(
         id="tp-wizard-agent",
         name="tp-wizard-agent",
@@ -69,6 +74,9 @@ def main(host: str, port: int):
     app.add_middleware(JWTContextMiddleware)
 
     bootstrap(app)
+    if enabled():
+        # Last-added middleware is outermost: validate before SDK/context handlers.
+        app.add_middleware(XsuaaMiddleware)
 
     logger.info(f"Starting A2A server at http://{host}:{port}")
     uvicorn.run(app, host=host, port=port)

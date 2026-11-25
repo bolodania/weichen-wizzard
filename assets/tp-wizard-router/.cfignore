@@ -1,0 +1,6 @@
+node_modules/
+.env
+.env.*
+.cdsrc-private.json
+default-env.json
+.git/

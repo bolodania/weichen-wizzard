@@ -1,0 +1,14 @@
+{
+  "welcomeFile": "/field/",
+  "authenticationMethod": "route",
+  "routes": [
+    {
+      "source": "^/(.*)$",
+      "target": "/$1",
+      "destination": "cap-backend",
+      "authenticationType": "xsuaa",
+      "scope": "$XSAPPNAME.WizardUser",
+      "csrfProtection": true
+    }
+  ]
+}

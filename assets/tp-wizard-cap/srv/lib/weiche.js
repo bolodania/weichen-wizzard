@@ -180,6 +180,7 @@ function uebernehmeDokumentwerte(katalog, session, werte) {
 
 function validiere(tps) {
   const warnings = [];
+  if (!tps.length) warnings.push('Keine TPs abgeleitet — Regelwerk oder Pflichtangaben prüfen');
   for (const tp of tps) if (!tp.tpKey) warnings.push(`TP ohne Schlüssel: ${tp.tpLabel || '?'}`);
   return { valid: warnings.length === 0, warnings };
 }
@@ -192,6 +193,7 @@ module.exports = {
   vorgaben,
   normalisiereWert,
   pruefeWert,
+  normalisiert,
   uebernehmeDokumentwerte,
   validiere,
 };

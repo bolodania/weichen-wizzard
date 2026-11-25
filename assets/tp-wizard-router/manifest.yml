@@ -1,0 +1,13 @@
+applications:
+  - name: tp-wizard-router
+    path: .
+    memory: 256M
+    instances: 1
+    buildpacks:
+      - nodejs_buildpack
+    random-route: true
+    services:
+      - tp-wizard-xsuaa
+    env:
+      NODE_ENV: production
+      # Set destinations after push using CAP's assigned HTTPS route.

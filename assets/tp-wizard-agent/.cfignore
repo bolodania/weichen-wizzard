@@ -1,0 +1,27 @@
+# Install Linux dependencies from requirements.txt, not a local virtualenv.
+venv/
+.venv/
+__pycache__/
+app/__pycache__/
+app/mcp_providers/__pycache__/
+*.pyc
+
+# Never upload credentials or local service bindings.
+.env
+.env.*
+default-env.json
+.cdsrc-private.json
+creds.json
+*.pem
+*.key
+
+.coverage
+coverage.json
+test_report.json
+htmlcov/
+tests/
+prebuilt_tests/
+.git/
+.vscode/
+.DS_Store
+# Retain app/skills/, mcp-mock.json, and requirements.txt.

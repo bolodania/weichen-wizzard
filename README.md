@@ -93,13 +93,20 @@ Wenn Katrin alle verbleibenden Fragen mit Standardwerten übernehmen möchte, se
 
 ---
 
+## Deploy the complete solution to BTP Cloud Foundry
+
+See the [step-by-step CAP + Python deployment README](docs/README-deployment-cf.md)
+for service provisioning, both manifests, AI Core environment configuration,
+XSUAA-protected HTTPS app-to-app connections, Approuter login, and troubleshooting.
+The existing CAP manifest alone does not deploy the Python agent.
+
 ## Lokales Setup
 
 ### Voraussetzungen
 
 | Tool | Version |
 |---|---|
-| Node.js | ≥ 20 |
+| Node.js | ≥ 22.12 |
 | `@sap/cds-dk` | ≥ 8 (global) |
 | Python | ≥ 3.11 |
 | pip / venv | aktuell |
@@ -113,7 +120,7 @@ npm install -g @sap/cds-dk
 ```bash
 cd assets/tp-wizard-cap
 npm install
-npm run dev        # CAP auf http://localhost:4004
+FL_MOCK=true npm run dev  # CAP auf http://localhost:4004, SAP-Anlage simuliert
 ```
 
 ```bash

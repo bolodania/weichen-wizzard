@@ -18,13 +18,14 @@
         mimeType="application/pdf"
         placeholder="PDF-Datei auswählen..."
         width="400px"
-        change=".onFileSelected"
+        change=".extension.tp.wizard.approve.ext.ApproverPanel.onFileSelected"
         style="Emphasized"/>
       <Button
         id="uploadBtn"
         text="Hochladen &amp; Analysieren"
         type="Emphasized"
-        press=".onUploadAndAnalyse"
+        press=".extension.tp.wizard.approve.ext.ApproverPanel.onUploadAndAnalyse"
+        busy="{approverPanel>/uploadBusy}"
         class="sapUiSmallMarginBegin"
         enabled="{approverPanel>/fileSelected}"/>
     </HBox>
@@ -134,7 +135,7 @@
               showNoData="false"
               class="sapUiSmallMargin">
               <CustomListItem>
-                <VBox class="{= ${approverPanel>role} === 'user' ? 'tpChatUser' : 'tpChatAgent' }">
+                <VBox class="sapUiSmallMargin">
                   <Text text="{approverPanel>text}" wrapping="true"/>
                   <ObjectStatus text="{approverPanel>role}" state="None" class="sapUiTinyMarginTop"/>
                 </VBox>
@@ -154,7 +155,7 @@
             <Button
               text="Senden"
               type="Emphasized"
-              press=".onChatSend"
+              press=".extension.tp.wizard.approve.ext.ApproverPanel.onChatSend"
               class="sapUiSmallMarginBegin"
               enabled="{= !!${approverPanel>/chatDraft} &amp;&amp; !${approverPanel>/chatBusy} }"/>
             <BusyIndicator

@@ -25,6 +25,16 @@
     }
   },
   "sap.ui5": {
+    "contentDensities": { "compact": true, "cozy": true },
+    "extends": {
+      "extensions": {
+        "sap.ui.controllerExtensions": {
+          "sap.fe.templates.ObjectPage.ObjectPageController": {
+            "controllerName": "tp.wizard.approve.ext.ApproverPanel"
+          }
+        }
+      }
+    },
     "flexEnabled": false,
     "dependencies": {
       "minUI5Version": "1.120.0",

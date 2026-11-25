@@ -30,6 +30,7 @@ build/
 creds.json
 default-env.json
 .cdsrc-private.json
+deployment-vars.yml
 
 # CAP / CDS
 gen/

@@ -1,0 +1,237 @@
+# Deploy to BTP Cloud Foundry: push first, connect afterward
+
+Deploy three applications: **CAP**, **Python agent**, and **SAP Approuter**.
+All use the same dedicated XSUAA service. Browser login is through Approuter;
+CAP/agent communicate through authenticated HTTPS, not CF network policies.
+
+**No domain lookup, hostname selection, or deployment-vars file is needed.** Each
+manifest uses `random-route: true`: plain `cf push` selects a route on CF's default
+domain. Read the resulting URLs, then configure the connections once.
+
+> PoC limitations: data/conversations are in memory, SAP TP creation is simulated,
+> and field/reviewer access share one role. Destination reads and AI Core calls are
+> real. Backend HTTPS endpoints validate tokens; only health is public.
+
+## 1. Target CF and provision services
+
+From the repository root, in a terminal or CI job:
+
+```bash
+export ROOT="$(pwd)"
+cf login
+cf target
+```
+
+Use the desired org/space. Node >=22.12/npm/CDS CLI are needed for CAP build;
+the Python buildpack must support Python 3.12. Services must be entitled.
+Create the following only if they do not already exist:
+
+```bash
+cf create-service xsuaa application tp-wizard-xsuaa -c xs-security.json
+cf create-service destination lite tp-wizard-destination
+cf create-service connectivity lite tp-wizard-connectivity
+cf services
+```
+
+Wait for successful provisioning. Connectivity/Cloud Connector are required for an
+OnPremise SAP destination, not an Internet destination. CAP's manifest binds these
+instances; all three manifests bind `tp-wizard-xsuaa`. `cds bind` is not needed.
+
+Choose a different `xsappname` in `xs-security.json` if `tp-wizard` conflicts.
+The initial redirect URI is a placeholder; it will be replaced with the actual
+Approuter callback in Step 4. No user login is attempted before then.
+If XSUAA already exists, update it with `cf update-service ... -c xs-security.json`
+to apply the descriptor's scopes, then wait for success.
+
+## 2. Push CAP and upload Python/Approuter
+
+```bash
+cd "$ROOT/assets/tp-wizard-cap"
+npm ci
+npm run build
+npm test -- --runInBand
+cf push
+
+cd "$ROOT/assets/tp-wizard-agent"
+cf push --no-start
+
+cd "$ROOT/assets/tp-wizard-router"
+npm ci
+cf push --no-start
+```
+
+`--no-start` allows configuring credentials/connections before Python/Approuter
+start. Their routes are assigned during push. No `--vars-file` or explicit route
+commands are required. CAP can start before the agent; chat is not ready yet.
+
+Read the assigned routes:
+
+```bash
+cf app tp-wizard-cap
+cf app tp-wizard-agent
+cf app tp-wizard-router
+```
+
+Set three shell variables using those actual routes, including `https://`:
+
+```bash
+export CAP_URL="https://YOUR_ASSIGNED_CAP_ROUTE"
+export AGENT_URL="https://YOUR_ASSIGNED_AGENT_ROUTE"
+export ROUTER_URL="https://YOUR_ASSIGNED_ROUTER_ROUTE"
+```
+
+Use no trailing slash for these variables. They are deployment outputs, not
+hostnames you must know beforehand. Keep the same assigned routes on later pushes;
+verify `cf app` output if changing app names/routes.
+
+## 3. Connect the apps and configure the SAP API
+
+```bash
+cf set-env tp-wizard-cap AGENT_URL "$AGENT_URL/"
+cf set-env tp-wizard-agent CAP_BASE_URL "$CAP_URL"
+cf set-env tp-wizard-agent AGENT_PUBLIC_URL "$AGENT_URL/"
+cf set-env tp-wizard-router destinations \
+  "[{\"name\":\"cap-backend\",\"url\":\"$CAP_URL\",\"forwardAuthToken\":true,\"timeout\":120000}]"
+
+cf set-env tp-wizard-cap VALUE_HELP_DESTINATION YOUR_BASIC_AUTH_DESTINATION
+```
+
+The address settings mean:
+
+| Variable | Purpose |
+|---|---|
+| CAP `AGENT_URL` | Send chat to Python |
+| Python `CAP_BASE_URL` | Send authenticated tool requests to CAP |
+| Python `AGENT_PUBLIC_URL` | Advertised A2A agent address |
+| Approuter `destinations` | Browser requests forwarded to CAP with user token |
+
+The supplied CAP manifest defaults to:
+
+```text
+Service: /sap/opu/odata/sap/API_BUSINESS_PARTNER
+EntitySet: A_BusinessPartner
+Code: BusinessPartner
+Description: BusinessPartnerFullName
+OData version: 2
+```
+
+Override `VALUE_HELP_SERVICE_PATH`, `VALUE_HELP_ENTITY_SET`, `VALUE_HELP_KEY_FIELD`,
+`VALUE_HELP_TEXT_FIELD`, or `VALUE_HELP_ODATA_VERSION` through `cf set-env` when
+needed. Keep SAP host/Basic Auth credentials/Location ID in BTP Destination, not
+app manifests. Avoid duplicating the service path in the destination URL.
+Business Partners are an example data source, not actual DS100 locations.
+
+No extra agent-to-CAP destination or network policies are needed: these connections
+use direct HTTPS with XSUAA bearer tokens. Python acquires a client-credentials
+token from its binding. CAP forwards authenticated browser tokens to the agent,
+or acquires a technical token for invocation when needed.
+
+## 4. Register the actual login callback and user access
+
+Edit the root `xs-security.json` and replace the placeholder redirect URI with:
+
+```text
+<actual ROUTER_URL>/login/callback
+```
+
+For example, paste the route assigned to Approuter followed by `/login/callback`.
+Use an exact HTTPS callback, not a broad wildcard. Update XSUAA:
+
+```bash
+cd "$ROOT"
+cf update-service tp-wizard-xsuaa -c xs-security.json
+cf service tp-wizard-xsuaa
+```
+
+Wait for update success. In BTP Cockpit assign **TP Wizard Users** role collection
+to authorized users. WizardUser enables UI/manual approval; technical CAPTools
+and AgentInvoke authorities allow trusted app-to-app calls, not approval.
+All components must use the same dedicated XSUAA instance for this PoC.
+
+## 5. Transfer AI Core configuration (not the .env file)
+
+Local `.env` files/virtual environments are excluded by `.cfignore` and are not
+automatically copied into BTP. Service credentials come through `VCAP_SERVICES`.
+The current agent's AI Core direct-mode loader needs these app variables:
+
+```text
+AICORE_CLIENT_ID
+AICORE_CLIENT_SECRET
+AICORE_AUTH_URL
+AICORE_BASE_URL
+AICORE_RESOURCE_GROUP
+```
+
+Supply them from an approved CI secret store, or reuse a trusted `.env` in a private
+deployment terminal. Only the listed variables are transferred:
+
+```bash
+cd "$ROOT/assets/tp-wizard-agent"
+(
+  set -a
+  source .env  # omit if CI already supplies the variables
+  set +a
+  : "${AICORE_CLIENT_ID:?Missing client ID}"
+  : "${AICORE_CLIENT_SECRET:?Missing client secret}"
+  : "${AICORE_AUTH_URL:?Missing auth URL}"
+  : "${AICORE_BASE_URL:?Missing base URL}"
+  cf set-env tp-wizard-agent AICORE_CLIENT_ID "$AICORE_CLIENT_ID" &&
+  cf set-env tp-wizard-agent AICORE_CLIENT_SECRET "$AICORE_CLIENT_SECRET" &&
+  cf set-env tp-wizard-agent AICORE_AUTH_URL "$AICORE_AUTH_URL" &&
+  cf set-env tp-wizard-agent AICORE_BASE_URL "$AICORE_BASE_URL" &&
+  cf set-env tp-wizard-agent AICORE_RESOURCE_GROUP "${AICORE_RESOURCE_GROUP:-default}"
+)
+```
+
+Check all commands succeeded. Do not use shell tracing, record the terminal, commit
+secrets, or share `cf env`: sufficiently privileged users can inspect app variables.
+This is not a secrets vault. Binding AI Core alone does not establish that this
+SDK direct-mode loader consumes its credentials from `VCAP_SERVICES`.
+
+## 6. Start and open the solution
+
+```bash
+cf restart tp-wizard-cap
+cf start tp-wizard-agent
+cf start tp-wizard-router
+```
+
+If already running, restart the affected app after environment changes. First
+start stages uploaded apps. Dependency/buildpack changes require re-push/restage.
+
+Open **your assigned Approuter URL + `/field/`**. XSUAA performs browser login;
+direct CAP URLs do not provide interactive login. Approval UI is at the same
+Approuter URL + `/approve/webapp/index.html`.
+
+Check:
+
+```bash
+curl -i "$CAP_URL/health"
+curl -i "$CAP_URL/wizard/listPendingSessions()"
+curl -i "$AGENT_URL/.well-known/agent-card.json"
+cf logs tp-wizard-cap --recent
+cf logs tp-wizard-agent --recent
+cf logs tp-wizard-router --recent
+```
+
+Health should be 200; unauthenticated CAP data/agent card should be 401. Valid
+tokens missing scopes yield 403. Login requires the role collection and registered
+callback. Test SAP value help, EWR chat, submission, review and mocked approval.
+Model/destination access still needs verification after deployment.
+
+## Updates and troubleshooting
+
+- Rebuild/re-push CAP with plain `cf push` from its folder; re-push Python/Approuter
+  from their folders. Address settings are not overwritten by manifest env entries.
+- If assigned URLs change, repeat Step 3 and update the callback in Step 4.
+- No `deployment-vars.yml`, `cf domains`, internal routes, SSH or network-policy
+  commands are part of this workflow.
+- Remove obsolete internal mappings if migrating from the old private setup.
+- Never switch cloud auth back to mocked; XSUAA binding is required at startup.
+- Browser login 403: assign role collection, sign out/in. Callback error: register
+  exact Approuter URI and update XSUAA. Tool 403: verify shared binding/authorities.
+- Value help 502: destination name, bindings, Basic Auth rights, Cloud Connector
+  mappings. AI Core errors: credentials, resource group and model availability.
+- In-memory sessions are lost on restart. Field/reviewer roles and client separation
+  remain PoC limitations. Existing agent instruction/document-tool issues are not
+  automatically resolved by deployment. SAP TP writes remain mocked.

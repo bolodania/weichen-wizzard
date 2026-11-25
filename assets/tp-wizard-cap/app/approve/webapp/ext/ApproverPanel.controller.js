@@ -1,31 +1,34 @@
 sap.ui.define([
-  'sap/ui/core/mvc/Controller',
+  'sap/ui/core/mvc/ControllerExtension',
   'sap/ui/model/json/JSONModel',
   'sap/m/MessageToast',
   'sap/m/MessageBox',
-], function (Controller, JSONModel, MessageToast, MessageBox) {
+], function (ControllerExtension, JSONModel, MessageToast, MessageBox) {
   'use strict';
 
-  return Controller.extend('tp.wizard.approve.ext.ApproverPanel', {
+  return ControllerExtension.extend('tp.wizard.approve.ext.ApproverPanel', {
 
     // ── Lifecycle ──────────────────────────────────────────────────────────
-    onInit: function () {
-      this._model = new JSONModel({
-        fileSelected: false,
-        selectedFile: null,
-        analysisResult: null,
-        chatMessages: [],
-        chatDraft: '',
-        chatBusy: false,
-        chatContextId: null,
-      });
-      this.getView().setModel(this._model, 'approverPanel');
+    override: {
+      onInit: function () {
+        this._model = new JSONModel({
+          fileSelected: false,
+          selectedFile: null,
+          uploadBusy: false,
+          analysisResult: null,
+          chatMessages: [],
+          chatDraft: '',
+          chatBusy: false,
+          chatContextId: null,
+        });
+        this.base.getView().setModel(this._model, 'approverPanel');
+      },
     },
 
     // ── Helper: get current sessionId from routing ─────────────────────────
     _getSessionId: function () {
       // 1. Prefer OData binding context (most reliable)
-      const ctx = this.getView().getBindingContext();
+      const ctx = this.base.getView().getBindingContext();
       if (ctx) {
         const sid = ctx.getProperty('sessionId');
         if (sid) return sid;
@@ -67,27 +70,15 @@ sap.ui.define([
     },
 
     _uploadDocument: function (sessionId, filename, mimeType, contentB64) {
-      const model = this.getView().getModel();
-      const busyBtn = this.byId('uploadBtn');
-      if (busyBtn) busyBtn.setBusy(true);
-
-      model.bindContext('/uploadDocument(...)').execute
-        ? this._callAction('/wizard/uploadDocument', { sessionId, filename, mimeType, contentB64 })
+      this._model.setProperty('/uploadBusy', true);
+      return this._callActionFetch('/wizard/uploadDocument', { sessionId, filename, mimeType, contentB64 })
             .then((result) => {
               const analysis = JSON.parse(result.analysisJson || '{}');
               this._model.setProperty('/analysisResult', analysis);
               MessageToast.show(`Dokument analysiert: ${analysis.summary || 'OK'}`);
             })
             .catch((err) => MessageBox.error(`Upload fehlgeschlagen: ${err.message}`))
-            .finally(() => { if (busyBtn) busyBtn.setBusy(false); })
-        : this._callActionFetch('/wizard/uploadDocument', { sessionId, filename, mimeType, contentB64 })
-            .then((result) => {
-              const analysis = JSON.parse(result.analysisJson || '{}');
-              this._model.setProperty('/analysisResult', analysis);
-              MessageToast.show(`Dokument analysiert: ${analysis.summary || 'OK'}`);
-            })
-            .catch((err) => MessageBox.error(`Upload fehlgeschlagen: ${err.message}`))
-            .finally(() => { if (busyBtn) busyBtn.setBusy(false); });
+            .finally(() => this._model.setProperty('/uploadBusy', false));
     },
 
     // ── Chat ───────────────────────────────────────────────────────────────
@@ -130,30 +121,20 @@ sap.ui.define([
 
     _scrollChatToBottom: function () {
       setTimeout(() => {
-        const scroll = this.byId('chatScroll');
+        const scroll = this.base.getView().findAggregatedObjects(true,
+          (control) => control.getId().endsWith('--chatScroll'))[0];
         if (scroll) scroll.scrollTo(0, 99999);
       }, 100);
     },
 
-    // ── Generic fetch-based OData action call ──────────────────────────────
+    // ── OData action call (model handles CSRF and service URL) ──────────────
     _callActionFetch: function (path, params) {
-      return fetch(path, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': this._getCsrfToken(),
-        },
-        body: JSON.stringify(params),
-      }).then((res) => {
-        if (!res.ok) return res.json().then((e) => { throw new Error(e.error?.message || res.statusText); });
-        return res.json();
-      }).then((data) => data.value ?? data);
-    },
-
-    _getCsrfToken: function () {
-      // CAP with mocked auth returns a static token; in production use the CSRF fetch pattern
-      const meta = document.querySelector('meta[name="csrf-token"]');
-      return meta ? meta.content : 'fetch';
+      const action = path.split('/').pop();
+      const binding = this.base.getView().getModel().bindContext(`/${action}(...)`);
+      Object.entries(params).forEach(([key, value]) => binding.setParameter(key, value));
+      return binding.execute('$direct')
+        .then(() => binding.getBoundContext().getObject())
+        .finally(() => binding.destroy());
     },
   });
 });

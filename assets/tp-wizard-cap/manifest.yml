@@ -1,0 +1,30 @@
+# XSUAA-protected CAP HTTPS endpoint. All apps share tp-wizard-xsuaa.
+# Run npm run build before cf push so app-field/dist is available.
+applications:
+  - name: tp-wizard-cap
+    path: .
+    memory: 512M
+    disk_quota: 1G
+    instances: 1
+    buildpacks:
+      - nodejs_buildpack
+    command: npm run start:poc
+    random-route: true
+    health-check-type: http
+    health-check-http-endpoint: /health
+    timeout: 180
+    services:
+      - tp-wizard-xsuaa
+      - tp-wizard-destination
+      - tp-wizard-connectivity
+    env:
+      NODE_ENV: production
+      FL_MOCK: "true"
+      CDS_REQUIRES_AUTH_KIND: xsuaa
+      # Destination credentials/host stay in BTP, never in this file.
+      VALUE_HELP_SERVICE_PATH: /sap/opu/odata/sap/API_BUSINESS_PARTNER
+      VALUE_HELP_ENTITY_SET: A_BusinessPartner
+      VALUE_HELP_KEY_FIELD: BusinessPartner
+      VALUE_HELP_TEXT_FIELD: BusinessPartnerFullName
+      VALUE_HELP_ODATA_VERSION: "2"
+      # Set VALUE_HELP_DESTINATION and AGENT_URL after push using cf set-env.
