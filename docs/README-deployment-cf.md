@@ -93,8 +93,45 @@ cf set-env tp-wizard-agent AGENT_PUBLIC_URL "$AGENT_URL/"
 cf set-env tp-wizard-router destinations \
   "[{\"name\":\"cap-backend\",\"url\":\"$CAP_URL\",\"forwardAuthToken\":true,\"timeout\":120000}]"
 
-cf set-env tp-wizard-cap VALUE_HELP_DESTINATION YOUR_BASIC_AUTH_DESTINATION
 ```
+
+### Required customer configuration: SAP destination name
+
+The named SAP destination is **not** the CF service instance
+`tp-wizard-destination`, and it is **not** Approuter's `cap-backend` destination.
+Find its exact name in the target **BTP subaccount → Connectivity → Destinations**.
+Choose the customer destination with the appropriate backend and authentication.
+
+Enter that actual name when prompted (do not copy a placeholder literally):
+
+```bash
+printf 'Enter the actual BTP SAP destination name: '
+read -r SAP_DESTINATION
+test -n "$SAP_DESTINATION" && \
+  cf set-env tp-wizard-cap VALUE_HELP_DESTINATION "$SAP_DESTINATION"
+cf restart tp-wizard-cap
+```
+
+There is **no hardcoded landscape destination or fallback name** in the application.
+The customer must set `VALUE_HELP_DESTINATION` once per deployment; missing names
+and obvious placeholders are rejected. Environment changes require a restart,
+not a rebuild. Local `.env` does not configure the deployed CF application.
+
+All backend API mapping values are configurable on **CAP**, not Python/Approuter:
+
+| CF environment variable | Purpose |
+|---|---|
+| `VALUE_HELP_DESTINATION` | Exact customer BTP destination name (required) |
+| `VALUE_HELP_SERVICE_PATH` | Relative backend service path |
+| `VALUE_HELP_ENTITY_SET` | Entity set to read |
+| `VALUE_HELP_KEY_FIELD` | Selected code property |
+| `VALUE_HELP_TEXT_FIELD` | Display description property |
+| `VALUE_HELP_ODATA_VERSION` | `2` or `4` |
+
+The standard Business Partner API below is only a configurable technical example.
+If overriding its mapping with `cf set-env`, update matching manifest values too
+so future pushes do not reset those API defaults. Destination credentials remain
+in BTP; never copy them into these environment settings or the frontend.
 
 The address settings mean:
 
@@ -143,10 +180,36 @@ cf update-service tp-wizard-xsuaa -c xs-security.json
 cf service tp-wizard-xsuaa
 ```
 
-Wait for update success. In BTP Cockpit assign **TP Wizard Users** role collection
-to authorized users. WizardUser enables UI/manual approval; technical CAPTools
-and AgentInvoke authorities allow trusted app-to-app calls, not approval.
-All components must use the same dedicated XSUAA instance for this PoC.
+Wait for update success. All components must use the same dedicated XSUAA instance
+for this PoC.
+
+### Required: assign browser users the application role
+
+Successful XSUAA login does **not** automatically grant application access. Before
+opening the UI, assign the **TP Wizard Users** role collection to each authorized
+user, including the deployer if they will test the application:
+
+1. Open the target **subaccount** in BTP Cockpit (not the CF application page).
+2. Navigate to **Security → Role Collections**.
+3. Select **TP Wizard Users**, then choose **Edit**.
+4. Under **Users**, add the user's login identifier and select the identity
+   provider used for their browser login.
+5. Save the assignment.
+
+If the collection is missing, an authorized administrator can create it and add
+the **WizardUser** role from this deployment's TP Wizard application identifier.
+Ensure it references the correct XSUAA application, not another deployment with
+a similar name. If WizardUser is not available, check that the XSUAA descriptor
+update completed successfully. CF space/deployer permissions alone do not grant
+this application role.
+
+After assignment, obtain a **new login session**: close existing application tabs
+and open the Approuter URL in a fresh Incognito/private browser session, then log
+in again. An existing access token does not gain scopes when a role is assigned.
+No application rebuild/redeployment is needed for role assignment alone.
+
+WizardUser enables UI/manual approval; technical CAPTools and AgentInvoke
+authorities allow trusted app-to-app calls, not approval.
 
 ## 5. Transfer AI Core configuration (not the .env file)
 
@@ -221,6 +284,22 @@ Model/destination access still needs verification after deployment.
 
 ## Updates and troubleshooting
 
+### Destination lookup returns 502 / Bad Gateway
+
+First inspect CAP logs, not just the browser response:
+
+```bash
+cf logs tp-wizard-cap --recent
+```
+
+If the log names a placeholder such as `YOUR_BASIC_AUTH_DESTINATION`, the guide's
+example was copied without substitution: set the real name using Step 3's prompt
+and restart CAP. A 502 by itself does not identify Basic Auth, Cloud Connector,
+or SAP authorization as the cause. Other checks: correct subaccount/service
+bindings, exact destination name, Cloud Connector host/Location ID/path mappings,
+Basic Auth credentials/API permissions and service URL. Never share credentials
+or tokens from diagnostic logs.
+
 - Rebuild/re-push CAP with plain `cf push` from its folder; re-push Python/Approuter
   from their folders. Address settings are not overwritten by manifest env entries.
 - If assigned URLs change, repeat Step 3 and update the callback in Step 4.
@@ -235,3 +314,17 @@ Model/destination access still needs verification after deployment.
 - In-memory sessions are lost on restart. Field/reviewer roles and client separation
   remain PoC limitations. Existing agent instruction/document-tool issues are not
   automatically resolved by deployment. SAP TP writes remain mocked.
+
+### Browser immediately displays “Forbidden”
+
+Check Approuter logs:
+
+```bash
+cf logs tp-wizard-router --recent
+```
+
+If the logs report `required scopes: <xsappname>.WizardUser` but
+`user scopes: openid`, authentication succeeded and **application authorization
+is missing**. Follow Step 4's role-collection assignment and log in with a fresh
+session. Do not remove the route scope check or change cloud authentication to
+mocked. A correct backend destination URL does not resolve missing user scopes.

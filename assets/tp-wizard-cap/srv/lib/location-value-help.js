@@ -12,6 +12,9 @@ function configuration() {
     entitySet: 'VALUE_HELP_ENTITY_SET', keyField: 'VALUE_HELP_KEY_FIELD',
     textField: 'VALUE_HELP_TEXT_FIELD', odataVersion: 'VALUE_HELP_ODATA_VERSION',
   })) config[key] = process.env[variable] || defaults[key];
+  if (!config.destination || /^(YOUR_|<|\(\()/i.test(config.destination)) {
+    throw new Error('VALUE_HELP_DESTINATION muss den tatsächlichen BTP-Destination-Namen enthalten; Platzhalter sind nicht erlaubt');
+  }
   for (const key of ['entitySet', 'keyField', 'textField']) {
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(config[key] || '')) throw new Error(`Ungültige Value-Help-Konfiguration: ${key}`);
   }
@@ -23,7 +26,12 @@ function configuration() {
 }
 
 async function getLocationValues(req) {
-  const config = configuration();
+  let config;
+  try {
+    config = configuration();
+  } catch (error) {
+    return req.reject(503, error.message);
+  }
   const search = String(req.data.search || '').trim();
   const skip = req.data.skip ?? 0;
   if (search.length > 100 || !Number.isInteger(skip) || skip < 0) {
@@ -58,7 +66,7 @@ async function getLocationValues(req) {
     };
   } catch (error) {
     cds.log('location-value-help').warn(`Value Help über Destination ${config.destination} fehlgeschlagen (${error.response?.status || 'Verbindung/Konfiguration'})`);
-    return req.reject(502, 'Value Help nicht erreichbar. BTP Destination-/Connectivity-Bindings, Cloud Connector und Benutzeranmeldung prüfen. PrincipalPropagation benötigt ein gültiges Benutzer-JWT.');
+    return req.reject(502, 'Value Help nicht erreichbar. Konfigurierten Destination-Namen, BTP-Service-Bindings, Cloud Connector und API-Berechtigungen prüfen. Details im CAP-Log; Basic Auth benötigt kein Benutzer-JWT.');
   }
 }
 

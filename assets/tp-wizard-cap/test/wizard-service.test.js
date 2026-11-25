@@ -2,6 +2,7 @@
 
 process.env.FL_MOCK = 'true';
 process.env.CDS_IGNORE_DUPLICATE = 'true';
+process.env.VALUE_HELP_DESTINATION = 'TEST_DESTINATION';
 // Integration tests must not invoke a developer's live LLM agent on port 5000.
 process.env.AGENT_URL = 'http://127.0.0.1:1';
 

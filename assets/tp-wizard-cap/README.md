@@ -92,7 +92,8 @@ Die Auswahl lädt über CAP und SAP Cloud SDK aus einer BTP-Destination. Der Bro
 erhält nur Code/Bezeichnung, keine Destination-Credentials. Suchtext und Seiten werden
 serverseitig an OData weitergegeben (30 Einträge pro Seite).
 
-Die Beispieleinstellung verwendet `RI4DEV400_PP` und
+Der Destination-Name hat keinen Standardwert und muss pro Landschaft über
+`VALUE_HELP_DESTINATION` gesetzt werden. Die technische Beispiel-API verwendet
 `/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner` mit den Feldern
 `BusinessPartner` und `BusinessPartnerFullName`. **Business Partner sind keine DS100-
 Betriebsstellen**: dies ist ausschließlich eine technische PoC-Quelle. Vor einer
@@ -113,8 +114,8 @@ Konfiguration ohne Codeänderungen, siehe `.env.example`:
 CAP lädt eine lokale `.env`; danach Server neu starten. Alternativ Variablen in der
 Deployment-Umgebung setzen. Standardwerte liegen unter `cds.valueHelp` in `package.json`.
 
-**Voraussetzungen für RI4DEV400_PP:** Die Destination ist `OnPremise` mit
-`PrincipalPropagation`. Es werden Destination-Service- und Connectivity-Service-Bindings,
+**Voraussetzungen bei PrincipalPropagation:** Für eine `OnPremise`-Destination mit
+`PrincipalPropagation` werden Destination-Service- und Connectivity-Service-Bindings,
 ein erreichbarer Cloud Connector und ein authentifizierter Benutzer mit gültigem JWT
 benötigt. CAP übergibt das eingehende Bearer-JWT an die Destination-Auflösung.
 Eine lokale CAP-Session mit Mock-Authentifizierung stellt **kein solches JWT** bereit.

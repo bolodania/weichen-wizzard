@@ -40,7 +40,6 @@
   },
   "cds": {
     "valueHelp": {
-      "destination": "RI4DEV400_PP",
       "servicePath": "/sap/opu/odata/sap/API_BUSINESS_PARTNER",
       "entitySet": "A_BusinessPartner",
       "keyField": "BusinessPartner",

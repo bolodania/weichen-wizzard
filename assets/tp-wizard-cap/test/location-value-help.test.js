@@ -8,6 +8,11 @@ describe('Destination-backed location value help', () => {
   let spy;
   beforeEach(() => {
     spy = jest.spyOn(client, 'executeHttpRequest');
+    cds.env.valueHelp = {
+      servicePath: '/sap/opu/odata/sap/API_BUSINESS_PARTNER',
+      entitySet: 'A_BusinessPartner', keyField: 'BusinessPartner', textField: 'BusinessPartnerFullName', odataVersion: '2',
+    };
+    process.env.VALUE_HELP_DESTINATION = 'TEST_DESTINATION';
   });
   afterEach(() => {
     spy.mockRestore();
@@ -22,13 +27,13 @@ describe('Destination-backed location value help', () => {
 
   test('uses configured example destination, escapes search and propagates JWT', async () => {
     cds.env.valueHelp = {
-      destination: 'RI4DEV400_PP', servicePath: '/sap/opu/odata/sap/API_BUSINESS_PARTNER',
+      servicePath: '/sap/opu/odata/sap/API_BUSINESS_PARTNER',
       entitySet: 'A_BusinessPartner', keyField: 'BusinessPartner', textField: 'BusinessPartnerFullName', odataVersion: '2',
     };
     spy.mockResolvedValue({ data: { d: { results: [{ BusinessPartner: '123', BusinessPartnerFullName: 'Example' }] } } });
     const result = await getLocationValues(request("O'Brien"));
     expect(result).toEqual({ items: [{ code: '123', description: 'Example' }], hasMore: false });
-    expect(spy.mock.calls[0][0]).toEqual({ destinationName: 'RI4DEV400_PP', jwt: 'user-token' });
+    expect(spy.mock.calls[0][0]).toEqual({ destinationName: 'TEST_DESTINATION', jwt: 'user-token' });
     expect(spy.mock.calls[0][1].params.$filter).toContain("substringof('O''Brien',BusinessPartner)");
     expect(spy.mock.calls[0][1].url).toBe('/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner');
   });
@@ -50,6 +55,12 @@ describe('Destination-backed location value help', () => {
 
   test('invalid paging is rejected before accessing a destination', async () => {
     await expect(getLocationValues(request('', -1))).rejects.toMatchObject({ status: 400 });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  test.each(['', 'YOUR_BASIC_AUTH_DESTINATION', '<destination-name>'])('rejects missing/placeholder destination %s', async (value) => {
+    process.env.VALUE_HELP_DESTINATION = value;
+    await expect(getLocationValues(request())).rejects.toMatchObject({ status: 503 });
     expect(spy).not.toHaveBeenCalled();
   });
 
