@@ -32,12 +32,12 @@ function deriveTPStructure(input, forlaTemplates, basicFormMappings) {
   const { hzBeweglich } = deriveHzBeweglich({ federwippe, herzstückbauart });
 
   // ── Step 2: Collect numeric answers ────────────────────────────────────
-  const anzahlVerschlussebenenZgv = parseInt(ans('anzahlVerschlussebenenZgv', '1'), 10);
+  const anzahlVerschlussebenenZgv = parseInt(ans('anzahlVerschlussebenenZgv', '0'), 10);
   const anzahlZungRollpaarZgv     = parseInt(ans('anzahlZungRollpaarZgv', '0'), 10);
   const anzahlVerschlussebenenHz  = hzBeweglich ? parseInt(ans('anzahlVerschlussebenenHz', '1'), 10) : 0;
   const anzahlHzRollpaare         = hzBeweglich ? parseInt(ans('anzahlHzRollpaare', '0'), 10) : 0;
   const radsensoren               = parseInt(ans('radsensoren', '0'), 10);
-  const anzahlAntriebeZgv         = parseInt(ans('anzahlAntriebeZgv', '1'), 10);
+  const anzahlAntriebeZgv         = parseInt(ans('anzahlAntriebeZgv', '0'), 10);
   const anzahlAntriebeHz          = hzBeweglich ? parseInt(ans('anzahlAntriebeHz', '0'), 10) : 0;
   const hydraulisch               = ans('hydraulisch', false) === true || ans('hydraulisch') === 'true';
   const weichensignale            = parseInt(ans('weichensignale', '0'), 10);
@@ -53,6 +53,12 @@ function deriveTPStructure(input, forlaTemplates, basicFormMappings) {
   const gleisstückWP              = ans('gleisstückWP', false) === true || ans('gleisstückWP') === 'true';
   const gleisstückEndA            = ans('gleisstückEndA', false) === true || ans('gleisstückEndA') === 'true';
   const gleisstückEndB            = ans('gleisstückEndB', false) === true || ans('gleisstückEndB') === 'true';
+
+  // ── Safety gate: decommissioned switch (Rückbaustatus 7/8) ─────────────
+  const rückbauStatus = parseInt(ans('rückbauStatus', '0'), 10);
+  if (rückbauStatus === 7 || rückbauStatus === 8) {
+    return { tps: [], hzBeweglich, openFields: [] };
+  }
 
   const derivedTPs = [];
 

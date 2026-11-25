@@ -23,7 +23,9 @@ import base64
 from contextvars import ContextVar, Token
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
+import httpx
 from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import Field, create_model
 from sap_cloud_sdk.agentgateway import create_client
@@ -36,8 +38,11 @@ logger = logging.getLogger(__name__)
 # Per-request user token, set by JWTContextMiddleware via set_user_token()
 _user_token_context: ContextVar[str | None] = ContextVar("user_token", default=None)
 
-# mcp-mock.json lives at the asset root (two levels above mcp_providers/)
+# mcp-mock.json lives at the agent root (three levels above this file: app/mcp_providers/agw.py)
 _MOCK_FILE = Path(__file__).parent.parent.parent / "mcp-mock.json"
+
+# CAP backend base URL for http_endpoint tool calls in mock mode
+CAP_BASE_URL = os.environ.get("CAP_BASE_URL", "http://localhost:4004")
 
 
 def set_user_token(token: str | None) -> Token:
@@ -113,17 +118,55 @@ def _build_mock_tools() -> list[BaseTool]:
                 if field_definitions
                 else create_model(f"{tool_name}_args")
             )
-            _response = json.dumps(mock_response)
 
-            async def _coroutine(_resp: str = _response, **kwargs: Any) -> str:
-                return _resp
+            if "http_endpoint" in tool_def:
+                _endpoint = tool_def["http_endpoint"]
+                _method = tool_def.get("http_method", "GET").upper()
+                _filter_fields: list[str] = tool_def.get("odata_filter_fields", [])
+
+                async def _http_coroutine(
+                    _ep: str = _endpoint,
+                    _meth: str = _method,
+                    _ff: list[str] = _filter_fields,
+                    **kwargs: Any,
+                ) -> str:
+                    # Substitute {paramName} placeholders in the URL template
+                    endpoint = _ep
+                    for k, v in kwargs.items():
+                        if v is not None:
+                            endpoint = endpoint.replace(f"{{{k}}}", str(v))
+                    url = f"{CAP_BASE_URL}{endpoint}"
+                    async with httpx.AsyncClient() as client:
+                        if _meth == "GET":
+                            filter_parts = [
+                                f"{f} eq '{kwargs[f]}'" for f in _ff if kwargs.get(f)
+                            ]
+                            if filter_parts:
+                                filter_expr = " and ".join(filter_parts)
+                                sep = "&" if "?" in url else "?"
+                                url = f"{url}{sep}$filter={quote(filter_expr, safe='')}"
+                            resp = await client.get(url, timeout=30.0)
+                        else:
+                            body = {k: v for k, v in kwargs.items() if v is not None}
+                            resp = await client.post(url, json=body, timeout=30.0)
+                    resp.raise_for_status()
+                    return resp.text
+
+                coroutine = _http_coroutine
+            else:
+                _response = json.dumps(mock_response)
+
+                async def _static_coroutine(_resp: str = _response, **kwargs: Any) -> str:
+                    return _resp
+
+                coroutine = _static_coroutine
 
             tools.append(
                 StructuredTool(
                     name=tool_name,
                     description=description,
                     args_schema=args_schema,
-                    coroutine=_coroutine,
+                    coroutine=coroutine,
                     handle_tool_error=True,
                 )
             )

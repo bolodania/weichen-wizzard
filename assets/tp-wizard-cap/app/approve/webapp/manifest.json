@@ -1,0 +1,103 @@
+{
+  "_version": "1.49.0",
+  "sap.app": {
+    "id": "tp.wizard.approve",
+    "type": "application",
+    "title": "TP-Wizard — Freigabe",
+    "description": "Einreichungen prüfen und freigeben",
+    "applicationVersion": { "version": "1.0.0" },
+    "dataSources": {
+      "mainService": {
+        "uri": "/wizard/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "4.0"
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": false
+    }
+  },
+  "sap.ui5": {
+    "flexEnabled": false,
+    "dependencies": {
+      "minUI5Version": "1.120.0",
+      "libs": {
+        "sap.m": {},
+        "sap.ui.core": {},
+        "sap.f": {},
+        "sap.uxap": {},
+        "sap.fe.templates": {}
+      }
+    },
+    "models": {
+      "": {
+        "type": "sap.ui.model.odata.v4.ODataModel",
+        "dataSource": "mainService",
+        "settings": {
+          "autoExpandSelect": true,
+          "earlyRequests": true,
+          "synchronizationMode": "None",
+          "operationMode": "Server"
+        }
+      }
+    },
+    "routing": {
+      "routes": [
+        {
+          "pattern": ":?query:",
+          "name": "SessionsList",
+          "target": "SessionsList"
+        },
+        {
+          "pattern": "Sessions({key}):?query:",
+          "name": "SessionsObjectPage",
+          "target": "SessionsObjectPage"
+        }
+      ],
+      "targets": {
+        "SessionsList": {
+          "type": "Component",
+          "id": "SessionsList",
+          "name": "sap.fe.templates.ListReport",
+          "options": {
+            "settings": {
+              "contextPath": "/Sessions",
+              "initialLoad": "Enabled",
+              "variantManagement": "None",
+              "navigation": {
+                "Sessions": {
+                  "detail": {
+                    "route": "SessionsObjectPage"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "SessionsObjectPage": {
+          "type": "Component",
+          "id": "SessionsObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "contextPath": "/Sessions",
+              "editMode": "Editable",
+              "navigation": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "sap.fiori": {
+    "registrationIds": [],
+    "archeType": "transactional"
+  }
+}

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TP-Wizard — Freigabe</title>
+    <style>html, body, #content { height: 100%; margin: 0; }</style>
+    <script>
+        // sap.fe.core.AppComponent needs sap.ushell.Container for shell services.
+        window.sap = window.sap || {};
+        (function() {
+            function appState() {
+                return {
+                    storeInnerAppStateAsync: function() { return Promise.resolve(""); },
+                    getInnerAppStateData:    function() { return Promise.resolve(null); },
+                    createEmptyAppState: function() {
+                        return { setData: function() {}, save: function() { return Promise.resolve(); },
+                                 getData: function() { return {}; }, getKey: function() { return ""; } };
+                    },
+                    createEmptyAppStateAsync: function() {
+                        return Promise.resolve({ setData: function() {}, save: function() { return Promise.resolve(); },
+                                                 getData: function() { return {}; }, getKey: function() { return ""; } });
+                    }
+                };
+            }
+            function nav() {
+                return {
+                    toExternal:               function() {},
+                    getSemanticObjectLinks:   function()   { return Promise.resolve([]); },
+                    isIntentSupported:        function(aI) { var r={}; (aI||[]).forEach(function(i){r[i]={supported:false};}); return Promise.resolve(r); },
+                    isNavigationSupported:    function(aI) { return Promise.resolve((aI||[]).map(function(){return{supported:false};})); },
+                    hrefForExternal:          function()   { return "#"; },
+                    registerNavigationFilter: function()   {}
+                };
+            }
+            function svc(n) {
+                if (n === "AppState")                   return appState();
+                if (n === "CrossApplicationNavigation") return nav();
+                if (n === "URLParsing") return {
+                    parseShellHash:     function()  { return {}; },
+                    splitHash:          function(h) { return { shellPart: "", appSpecificPart: h || "" }; },
+                    constructShellHash: function()  { return ""; },
+                    getShellHash:       function(s) { var m = (s || window.location.href).match(/#(.*)/); return m ? "#" + m[1] : ""; },
+                    getHash:            function(s) { var m = (s || window.location.href).match(/#(.*)/); return m ? m[1] : ""; }
+                };
+                return { registerNavigationFilter: function(){}, toExternal: function(){}, hrefForExternal: function(){ return "#"; } };
+            }
+            window.sap.ushell = {
+                Container: {
+                    getService:      svc,
+                    getServiceAsync: function(n) { return Promise.resolve(svc(n)); },
+                    getUser: function() {
+                        return {
+                            getContentDensity: function() { return "compact"; },
+                            getFullName:       function() { return "Thomas"; },
+                            getEmail:          function() { return ""; },
+                            getId:             function() { return "THOMAS"; },
+                            getLanguage:       function() { return "DE"; },
+                            isJamActive:       function() { return false; }
+                        };
+                    },
+                    attachRendererCreatedEvent: function() {},
+                    detachRendererCreatedEvent: function() {},
+                    createRenderer:             function() { return Promise.resolve(); }
+                }
+            };
+        })();
+    </script>
+    <script id="sap-ui-bootstrap"
+        src="https://ui5.sap.com/1.120.28/resources/sap-ui-core.js"
+        data-sap-ui-theme="sap_horizon"
+        data-sap-ui-resourceroots='{"tp.wizard.approve": "./"}'
+        data-sap-ui-compatVersion="edge"
+        data-sap-ui-async="true"
+        data-sap-ui-preload=""
+        data-sap-ui-frameOptions="allow"
+    ></script>
+    <script>
+        sap.ui.require([
+            "sap/ui/core/service/ServiceFactory",
+            "sap/ui/core/service/ServiceFactoryRegistry",
+            "sap/ui/core/ComponentContainer"
+        ], function(ServiceFactory, ServiceFactoryRegistry, ComponentContainer) {
+
+            // sap.fe.core.AppComponent looks up ShellUIService via ServiceFactoryRegistry
+            // (not via Container.getService). Without FLP sandbox this factory is never
+            // auto-registered, so we provide a minimal mock as a proper ServiceFactory
+            // subclass to satisfy the instanceof assertion.
+            var ShellUIServiceFactory = ServiceFactory.extend("tp.wizard.mock.ShellUIServiceFactory", {
+                createInstance: function() {
+                    var oSvc = {
+                        init:              function() {},
+                        exit:              function() {},
+                        destroy:           function() {},
+                        setTitle:          function() {},
+                        setHierarchy:      function() {},
+                        setRelatedApps:    function() {},
+                        setBackNavigation: function() {},
+                        getInterface:      function() { return oSvc; }
+                    };
+                    return Promise.resolve(oSvc);
+                }
+            });
+            ServiceFactoryRegistry.register("sap.ushell.ui5service.ShellUIService", new ShellUIServiceFactory());
+
+            new ComponentContainer({
+                name: "tp.wizard.approve",
+                settings: { id: "tp.wizard.approve" },
+                async: true,
+                height: "100%"
+            }).placeAt("content");
+        });
+    </script>
+</head>
+<body class="sapUiBody sapUiSizeCompact" id="content">
+</body>
+</html>

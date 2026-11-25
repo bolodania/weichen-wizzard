@@ -1,8 +1,8 @@
 'use strict';
 
 const { deriveTPStructure, validateTPStructure } = require('../srv/rule-engine-service');
-const forlaTemplates   = require('../db/data/ForlaTemplate.json');
-const basicFormMappings = require('../db/data/BasicFormMapping.json');
+const forlaTemplates   = require('../db/data/tp.wizard.ForlaTemplate.json');
+const basicFormMappings = require('../db/data/tp.wizard.BasicFormMapping.json');
 
 // ── NI_W2006: einfache Weiche rechts, Hz starr, 1 Zgv-Antrieb, elektrische Heizung
 const NI_W2006_INPUT = {
@@ -109,7 +109,7 @@ describe('Rule Engine — deriveTPStructure', () => {
 
   test('NRB_W806: Übertragungsgestänge Zgv present (2 Antriebe)', () => {
     const { tps } = deriveTPStructure(NRB_W806_INPUT, forlaTemplates, basicFormMappings);
-    const ug = tps.filter(tp => tp.vorlaKey && tp.vorlaKey.includes('ZUBA-UG'));
+    const ug = tps.filter(tp => tp.vorlaKey && tp.vorlaKey.includes('ZUBA-WA-01UEG-'));
     expect(ug.length).toBeGreaterThan(0);
   });
 
@@ -140,6 +140,105 @@ describe('Rule Engine — deriveTPStructure', () => {
       expect(typeof tp.tpKey).toBe('string');
       expect(tp.tpKey.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('Rule Engine — Rückbaustatus suppression', () => {
+  const baseInput = {
+    basicForm: 'EWR',
+    ds100: 'NI',
+    switchNumber: '2006',
+    answers: [
+      { questionId: 'stwBauform',              answer: 'SETEDBRU' },
+      { questionId: 'anzahlVerschlussebenenZgv',answer: '1' },
+      { questionId: 'anzahlZungRollpaarZgv',    answer: '3' },
+      { questionId: 'herzstückbauart',          answer: '0' },
+      { questionId: 'federwippe',               answer: 'false' },
+      { questionId: 'radsensoren',              answer: '0' },
+      { questionId: 'anzahlAntriebeZgv',        answer: '1' },
+      { questionId: 'hydraulisch',              answer: 'false' },
+      { questionId: 'weichensignale',           answer: '0' },
+      { questionId: 'lichtpunkte',              answer: '0' },
+      { questionId: 'weichensteuerung',         answer: 'false' },
+      { questionId: 'weichenüberwachung',       answer: 'false' },
+      { questionId: 'isoPositions',             answer: '[]' },
+      { questionId: 'havPositions',             answer: '[]' },
+      { questionId: 'prellbock',                answer: 'false' },
+      { questionId: 'gleisstückWP',             answer: 'false' },
+      { questionId: 'gleisstückEndA',           answer: 'false' },
+      { questionId: 'gleisstückEndB',           answer: 'false' },
+      { questionId: 'erdung',                   answer: 'false' },
+      { questionId: 'heizungTyp',               answer: 'elektrisch' }
+    ]
+  };
+
+  function withStatus(status) {
+    return {
+      ...baseInput,
+      answers: [
+        ...baseInput.answers,
+        { questionId: 'rückbauStatus', answer: String(status) }
+      ]
+    };
+  }
+
+  test('rückbauStatus 7: no TPs generated (decommissioned)', () => {
+    const { tps } = deriveTPStructure(withStatus(7), forlaTemplates, basicFormMappings);
+    expect(tps.length).toBe(0);
+  });
+
+  test('rückbauStatus 8: no TPs generated (demolished)', () => {
+    const { tps } = deriveTPStructure(withStatus(8), forlaTemplates, basicFormMappings);
+    expect(tps.length).toBe(0);
+  });
+
+  test('rückbauStatus 0: TPs generated normally', () => {
+    const { tps } = deriveTPStructure(withStatus(0), forlaTemplates, basicFormMappings);
+    expect(tps.length).toBeGreaterThan(0);
+  });
+});
+
+describe('Rule Engine — Isolierstoß keys', () => {
+  test('ZGVL generates VORLA--WE------1ZUBA-ISO1 key', () => {
+    const { tps } = deriveTPStructure(NRB_W806_INPUT, forlaTemplates, basicFormMappings);
+    const iso = tps.find(tp => tp.isoPos === 'ZGVL');
+    expect(iso).toBeDefined();
+    expect(iso.vorlaKey).toBe('VORLA--WE------1ZUBA-ISO1');
+  });
+
+  test('ZGVR generates VORLA--WE------1ZUBA-ISO2 key', () => {
+    const { tps } = deriveTPStructure(NRB_W806_INPUT, forlaTemplates, basicFormMappings);
+    const iso = tps.find(tp => tp.isoPos === 'ZGVR');
+    expect(iso).toBeDefined();
+    expect(iso.vorlaKey).toBe('VORLA--WE------1ZUBA-ISO2');
+  });
+
+  test('STRAL generates VORLA--WE------1STR-AISO1 key', () => {
+    const { tps } = deriveTPStructure(NRB_W806_INPUT, forlaTemplates, basicFormMappings);
+    const iso = tps.find(tp => tp.isoPos === 'STRAL');
+    expect(iso).toBeDefined();
+    expect(iso.vorlaKey).toBe('VORLA--WE------1STR-AISO1');
+  });
+
+  test('STRAR generates VORLA--WE------1STR-AISO2 key', () => {
+    const { tps } = deriveTPStructure(NRB_W806_INPUT, forlaTemplates, basicFormMappings);
+    const iso = tps.find(tp => tp.isoPos === 'STRAR');
+    expect(iso).toBeDefined();
+    expect(iso.vorlaKey).toBe('VORLA--WE------1STR-AISO2');
+  });
+
+  test('HZL generates VORLA--WE------1HZ-ABISO1 key', () => {
+    const { tps } = deriveTPStructure(NRB_W806_INPUT, forlaTemplates, basicFormMappings);
+    const iso = tps.find(tp => tp.isoPos === 'HZL');
+    expect(iso).toBeDefined();
+    expect(iso.vorlaKey).toBe('VORLA--WE------1HZ-ABISO1');
+  });
+
+  test('HZR generates VORLA--WE------1HZ-ABISO2 key', () => {
+    const { tps } = deriveTPStructure(NRB_W806_INPUT, forlaTemplates, basicFormMappings);
+    const iso = tps.find(tp => tp.isoPos === 'HZR');
+    expect(iso).toBeDefined();
+    expect(iso.vorlaKey).toBe('VORLA--WE------1HZ-ABISO2');
   });
 });
 

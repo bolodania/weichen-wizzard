@@ -22,7 +22,7 @@ function deriveAntriebe({ anzahlAntriebeZgv = 0, anzahlAntriebeHz = 0, hydraulis
   // Übertragungsgestänge Zgv: wenn mehr als 1 Antrieb, oder explizit gesetzt
   if (anzahlAntriebeZgv > 1) {
     tps.push({
-      vorlaKey: 'VORLA--WE------1ZUBA-UG---',
+      vorlaKey: 'VORLA--WE------1ZUBA-WA-01UEG-',
       tpLabel: 'Übertragungsgestänge Zgv',
       area: 7,
       isAutomatic: false,
@@ -43,7 +43,7 @@ function deriveAntriebe({ anzahlAntriebeZgv = 0, anzahlAntriebeHz = 0, hydraulis
     // Übertragungsgestänge Hz
     if (anzahlAntriebeHz > 0) {
       tps.push({
-        vorlaKey: 'VORLA--WE------1HZ-ABUG---',
+        vorlaKey: 'VORLA--WE------1HZ-ABWA-01UEG-',
         tpLabel: 'Übertragungsgestänge Hz',
         area: 7,
         isAutomatic: false,

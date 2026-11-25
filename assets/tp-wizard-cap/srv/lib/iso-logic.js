@@ -33,11 +33,28 @@ function getRelevantIsoPositions(stwBauform) {
   return ALL_ISO_POSITIONS.filter(p => ids.includes(p.id));
 }
 
+const ISO_KEY_MAP = {
+  'ZGVL':   'ZUBA-ISO1',
+  'ZGVR':   'ZUBA-ISO2',
+  'STRAL':  'STR-AISO1',
+  'STRAR':  'STR-AISO2',
+  'STRBL':  'STR-BISO1',
+  'STRBR':  'STR-BISO2',
+  'HZL':    'HZ-ABISO1',
+  'HZR':    'HZ-ABISO2',
+  'RLL':    'HZ-ABRLL-ISO1',
+  'RLR':    'HZ-ABRLR-ISO1',
+  'ZSBSL':  'ZSBA-BSRLL-ISO1',
+  'ZSBSR':  'ZSBA-BSRLR-ISO1',
+  'ZSZHZL': 'ZSBA-ZGHZL-ISO1',
+  'ZSZHZR': 'ZSBA-ZGHZR-ISO1'
+};
+
 function deriveIsolaerstöße(stwBauform, selectedPositions = []) {
   const relevant = getRelevantIsoPositions(stwBauform);
   const active = relevant.filter(p => selectedPositions.includes(p.id));
   return active.map(p => ({
-    vorlaKey: `VORLA--WE------1${p.id.substring(0, 4)}-ISO1`,
+    vorlaKey: `VORLA--WE------1${ISO_KEY_MAP[p.id]}`,
     tpLabel: `Isolierstoß ${p.label}`,
     area: 14,
     isAutomatic: false,
