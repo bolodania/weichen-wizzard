@@ -46,7 +46,7 @@ def main(host: str, port: int):
         version="1.0.0",
         default_input_modes=["text", "text/plain"],
         default_output_modes=["text", "text/plain"],
-        capabilities=AgentCapabilities(streaming=True, push_notifications=False),
+        capabilities=AgentCapabilities(streaming=False, push_notifications=False),
         skills=[skill],
     )
     server = A2AStarletteApplication(
@@ -65,10 +65,13 @@ def main(host: str, port: int):
             auth_header = request.headers.get("authorization", "")
             token = auth_header[7:] if auth_header.lower().startswith("bearer ") else None
             token_ctx = set_user_token(token)
+            from mcp_providers.cap import wizard_mode
+            mode_ctx = wizard_mode.set('review' if request.headers.get('x-wizard-mode') == 'review' else 'field')
             try:
                 return await call_next(request)
             finally:
                 reset_user_token(token_ctx)
+                wizard_mode.reset(mode_ctx)
 
     app.add_middleware(JWTContextMiddleware)
 

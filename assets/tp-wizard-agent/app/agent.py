@@ -1,7 +1,6 @@
 import logging
 import os
-from dataclasses import dataclass
-from typing import Any, AsyncGenerator, Literal, Sequence, cast
+from typing import Any, AsyncGenerator, Sequence, cast
 
 from langchain.agents import create_agent
 from langchain.agents.middleware import SummarizationMiddleware
@@ -20,7 +19,7 @@ from litellm.exceptions import (
 from sap_cloud_sdk.agent_decorators import agent_config, agent_model, prompt_section
 from sap_cloud_sdk.agent_memory.factory.langgraph_checkpoint import create_checkpointer
 from circuit_breaker import CircuitBreaker
-from mcp_providers.cap import get_user_sub
+from mcp_providers.cap import get_user_sub, wizard_mode
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +140,19 @@ def get_summarization_model_name() -> str:
     validation={"format": "markdown", "max_length": 5000},
 )
 def get_system_prompt() -> str:
-    base_prompt = """Du bist der TP-Wizard-Chatbot fuer DB InfraGO. Du unterstuetzt Katrin (Feldaufnehmerin) dabei, Weichendaten vollstaendig zu erfassen und zur Freigabe einzureichen. Du legst KEINE Technischen Plaetze direkt in SAP an — das ist ausschliesslich Aufgabe von Thomas (Technischer Verantwortlicher) nach seiner Pruefung.\n\nLade die Skill-Anleitung mit load(\"skills/weichen-dialog/SKILL.md\") bevor du einen Dialog zur Weichenanlage fuehrst.\n\n## Session-Initialisierung\n\nWenn die erste Benutzeranfrage eine Zeile der Form "Session-Id: {uuid}" enthaelt, wurde die Session bereits durch das Frontend angelegt. Verwende diese Session-Id direkt fuer ALLE Folge-Aufrufe (getSmartDefaults, getNextQuestion, submitAnswer, submitSession, bulkSubmitWithDefaults) und rufe createSession NICHT auf. Beginne sofort mit dem Frage-Dialog.\n\nFalls keine "Session-Id:" Zeile vorhanden ist, erstelle die Session zuerst mit createSession.\n\n## Zwei-Rollen-Workflow (SICHERHEITSKRITISCH)\n\nDieser Agent unterstuetzt ausschliesslich Katrin (Rolle: Feldaufnehmerin):\n1. Fuehre den vollstaendigen Frage-Dialog (createSession → submitAnswer in Schleifen)\n2. Zeige die TP-Vorschau und bitte Katrin zur Bestaetigung\n3. Rufe submitSession auf, sobald Katrin alle Daten bestaetigt hat\n4. Informiere Katrin, dass Thomas die Anfrage pruefen und freigeben wird\n\nDie SAP-Schreiboperation (Anlage der Technischen Plaetze) erfolgt ERST nach Freigabe durch Thomas in der separaten Freigabe-App.\n\n## bulkSubmitWithDefaults — Massenuebernahme von Standardwerten\n\nWenn Katrin ausdruecklich alle noch offenen Fragen mit Standardwerten uebernehmen und den Prozess abschliessen moechte (z.B. "alle restlichen Standardwerte uebernehmen und fertig"), rufe bulkSubmitWithDefaults(sessionId) auf.\n\nDiese Funktion:\n- Setzt automatisch alle noch nicht beantworteten Fragen auf den jeweiligen Standardwert (source='agent-default')\n- Reicht die Session direkt ein (entspricht submitSession)\n- Gibt zurueck, wie viele Fragen per Standard gesetzt wurden\n\nBEACHTE: bulkSubmitWithDefaults ersetzt NICHT den individuellen Frage-Dialog — nutze es NUR wenn Katrin das ausdruecklich wuenscht. Bereits beantwortete Fragen werden nicht veraendert.\n\n## ABSOLUTES VERBOT\n\nDu DARFST NIEMALS approveSession aufrufen.\napproveSession ist ausschliesslich Thomas vorbehalten und loest die SAP-Schreiboperation aus.\nEin versehentlicher Aufruf von approveSession wuerde unkontrolliert Technische Plaetze in SAP anlegen — ohne Pruefung durch Thomas. Dies ist sicherheitskritisch.\n\nWICHTIG: Du DARFST KEINE TP-Schluessel erfinden oder generieren. Alle TP-Ableitungen werden ausschliesslich durch das CAP-Regelwerk (via MCP-Tools) durchgefuehrt. Leite Fehler aus Tools woertlich weiter - keine Umformulierung.\n\n## Fertigmeldung und Belegpflicht\n\nDas gepruefte Regelwerk deckt aktuell die einfache Weiche rechts (EWR) ab; fuer andere Grundbauformen liegt noch kein Regelwerk vor und es werden keine TPs abgeleitet.\n\nWerte, die du aus einer Fertigmeldung liest, setzt du NICHT ueber submitAnswer, sondern ausschliesslich ueber applyDocumentValues — und nur mit einer woertlichen Textstelle, die exakt so im Fertigmeldungstext vorkommt. Werte ohne passende Textstelle oder mit ungueltigem Wert werden abgelehnt; erfinde niemals einen Wert oder eine Textstelle. Werte, die Katrin im Chat nennt oder bestaetigt, setzt du weiterhin ueber submitAnswer.\n\nWenn ein Tool aufgerufen wird, setze 'top' oder 'limit' auf maximal 100.\n\nUse the MCP tools to interact with the TP Wizard CAP backend for all wizard session management, question flow, TP preview, and session submission operations.""" + _DEFENSIVE_PROMPT_SUFFIX
+    mode = wizard_mode.get()
+    if mode == 'review':
+        base_prompt = """Du unterstützt den Technischen Verantwortlichen bei der Prüfung bestehender Sessions.
+Lade load("approver-assist/SKILL.md"). Nutze ausschließlich die angegebene Session.
+Ändere Antworten nur auf ausdrücklichen Wunsch. Niemals freigeben oder neue Sessions erstellen."""
+    else:
+        base_prompt = """Du führst die Weichenerfassung auf Deutsch durch.
+Lade load("weichen-dialog/SKILL.md"). Verwende Session-Id aus der Nachricht; erstelle keine zweite Session.
+Frage genau die von getNextQuestion gelieferte Frage und speichere bestätigte Antworten mit submitAnswer.
+Vorgaben haben nur mittlere Konfidenz: nicht unbestätigt als Fakten setzen.
+Nutze ausschließlich Katalog-IDs und erlaubte Werte. Ableitungen stammen nur aus CAP.
+Sobald keine Frage offen ist, zeige die Zusammenfassung und verweise auf den Bestätigungsbutton.
+Du darfst niemals einreichen oder freigeben; der Benutzer reicht über den UI-Button ein."""
     custom_resistance = get_injection_resistance()
     if custom_resistance:
         base_prompt += f"\n\n## Agent-Specific Security Guidelines\n{custom_resistance}"
@@ -157,14 +168,7 @@ def get_injection_resistance() -> str:
     return os.environ.get("AGENT_INJECTION_RESISTANCE", "")
 
 
-@dataclass
-class AgentResponse:
-    status: Literal["input_required", "completed", "error"]
-    message: str
-
-
 class SampleAgent:
-    SUPPORTED_CONTENT_TYPES = ["text", "text/plain"]
 
     def __init__(self):
         ttl = thread_ttl_seconds()
@@ -197,8 +201,6 @@ class SampleAgent:
         self._model_chain: list[tuple[str, ChatLiteLLM]] = [
             (name, _build_llm(name)) for name in ordered_models
         ]
-        # Retained so existing references to `self.llm` (the primary) keep working.
-        self.llm = self._model_chain[0][1]
 
         # The circuit breaker gives the chain a short cross-request memory: a model
         # that fails repeatedly is skipped for a cooldown instead of being re-tried
@@ -217,7 +219,7 @@ class SampleAgent:
         # the last N messages in full. This intentionally invalidates the prompt cache when
         # it fires (the summarized history is new content), but the static prefix —
         # system prompt + tool schemas, marked cacheable via cache_control_injection_points
-        # on self.llm — stays cacheable across all turns, summarized or not.
+        # on the primary model — stays cacheable across turns.
         summarization_llm = ChatLiteLLM(
             model=get_summarization_model_name(), temperature=0.0
         )
@@ -234,13 +236,20 @@ class SampleAgent:
         system_prompt: str,
     ) -> CompiledStateGraph:
         """Create a LangGraph agent with the specified LLM."""
-        return create_agent(
+        if not hasattr(self, '_graphs'):
+            self._graphs = {}
+        key = (id(llm), system_prompt, tuple(tool.name for tool in tools))
+        if key in self._graphs:
+            return self._graphs[key]
+        graph = create_agent(
             llm,
             tools=list(tools),
             system_prompt=system_prompt,
             checkpointer=self._checkpointer,
             middleware=[self._summarization_middleware],
         )
+        self._graphs[key] = graph
+        return graph
 
     async def _invoke_with_fallback(
         self,
@@ -257,7 +266,7 @@ class SampleAgent:
         model's circuit breaker; any other error propagates immediately. This is the
         client-side complement to SAP AI Core's per-request orchestration fallback.
         """
-        config = {"configurable": {"thread_id": f"{get_user_sub()}:{context_id}"}}
+        config = {"configurable": {"thread_id": f"{get_user_sub()}:{wizard_mode.get()}:{context_id}"}}
         messages = {"messages": (extra_messages or []) + [HumanMessage(content=query)]}
 
         async def _run(llm: ChatLiteLLM) -> dict[str, Any]:
@@ -336,7 +345,7 @@ class SampleAgent:
         }
 
         try:
-            system_prompt = get_system_prompt()
+            system_prompt = get_system_prompt() + _DEFENSIVE_PROMPT_SUFFIX
             tool_names = [tool.name for tool in tools] if tools else []
             logger.info("Running agent with %d tool(s): %s", len(tool_names), tool_names)
 
@@ -362,8 +371,8 @@ class SampleAgent:
             response = result["messages"][-1].content
 
             yield {
-                "is_task_complete": True,
-                "require_user_input": False,
+                "is_task_complete": False,
+                "require_user_input": True,
                 "content": response,
             }
 
@@ -372,32 +381,6 @@ class SampleAgent:
             yield {
                 "is_task_complete": True,
                 "require_user_input": False,
-                "content": "I encountered an error while processing your request. Please try again.",
+                "failed": True,
+                "content": "Agent-Aufruf fehlgeschlagen. Bitte prüfen Sie die Verbindung und versuchen Sie es erneut.",
             }
-
-    async def invoke(
-        self,
-        query: str,
-        context_id: str,
-        tools: Sequence[BaseTool] | None = None,
-    ) -> AgentResponse:
-        """Invoke agent and return final response.
-
-        Args:
-            query: User query to process
-            context_id: Context identifier for the conversation
-            tools: Optional sequence of LangChain tools. If None or empty, agent runs without tools.
-
-        Returns:
-            AgentResponse with status and message
-        """
-        last: dict = {}
-        async for chunk in self.stream(query, context_id, tools=tools):
-            last = chunk
-        if last.get("is_task_complete"):
-            return AgentResponse(status="completed", message=last["content"])
-        if last.get("require_user_input"):
-            return AgentResponse(status="input_required", message=last["content"])
-        return AgentResponse(
-            status="error", message=last.get("content", "Unknown error")
-        )

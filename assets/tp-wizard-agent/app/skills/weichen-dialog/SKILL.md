@@ -44,9 +44,9 @@ Frage nach:
 
 ### Schritt 3: Wizard-Session erstellen und Standardkonfiguration laden
 
-1. Rufe `createSession` via MCP-Tool auf mit `ds100`, `switchNumber`, `basicForm`. Speichere `sessionId`.
+1. Falls keine Session-Id vorliegt, rufe `createSession` auf mit `ds100`, `switchNumber`, `basicForm`. Speichere `sessionId`.
 2. Rufe sofort `getSmartDefaults(basicForm)` auf.
-3. Sende alle High-Confidence-Defaults automatisch via `submitAnswer` mit `source: "agent-default"`.
+3. Vorgaben sind Vorschläge mit mittlerer Konfidenz. Nur nach Bestätigung via `submitAnswer` setzen.
 4. Präsentiere eine kurze Zusammenfassung an Katrin:
    > "Ich habe die Standardkonfiguration für **[Grundbauform]** geladen und folgende Standardwerte gesetzt:
    > • [Default 1]
@@ -93,26 +93,11 @@ Wenn alle Fragen beantwortet sind (`getNextQuestion` gibt null zurück):
 3. Liste explizit auf, welche Werte von Katrin korrigiert wurden (abweichend vom Standard)
 4. **NIEMALS** rohe TP-Schlüssel anzeigen — nur Klartext-Bezeichnungen
 
-### Schritt 6: Einreichung zur Freigabe weiterleiten
+### Schritt 6: Explizite Bestätigung in der Oberfläche
 
-Frage explizit: "Soll ich die Einreichung mit [N] Technischen Plätzen zur Freigabe an Thomas weiterleiten?"
-
-Warte auf eine klare Bestätigung ("Ja", "Bestätigen", "Weiterleiten", "Ja, bitte").
-
-Bei Änderungswunsch: Verarbeite die Korrektur (zurück zu Schritt 4) und präsentiere die neue Vorschau.
-
-**NIEMALS `submitSession` aufrufen ohne explizite Bestätigung.**
-**NIEMALS `approveSession` aufrufen — das ist ausschließlich Thomas' Aufgabe.**
-
-### Schritt 7: Einreichung und Bestätigung
-
-Rufe `submitSession` auf mit der `sessionId`.
-
-Berichte das Ergebnis:
-- Bei Erfolg: "✅ Einreichung [sessionId] wurde erfolgreich an Thomas zur Freigabe weitergeleitet. Du erhältst keine weitere Benachrichtigung — Thomas prüft und gibt frei."
-- Bei Fehler: Gib die Fehlermeldung wörtlich aus
-
-Log: `[M5.achieved]: Zwei-Rollen-Flow vollstaendig durchlaufen — Katrin submitted`
+Zeige die Vorschau und verweise auf „Zur Freigabe einreichen“.
+Der Agent reicht niemals ein und gibt niemals frei. Bei Änderungswunsch die Antwort
+mit submitAnswer korrigieren. Die Oberfläche fragt den tatsächlichen CAP-Zustand ab.
 
 ## Entscheidungshinweise
 
@@ -123,7 +108,7 @@ Log: `[M5.achieved]: Zwei-Rollen-Flow vollstaendig durchlaufen — Katrin submit
 
 ### Werte aus einer Fertigmeldung übernehmen (Belegpflicht)
 
-Wenn eine Fertigmeldung vorliegt und du daraus Werte liest:
+Lade Dokumenttext mit `getSessionContext`. Wenn eine Fertigmeldung vorliegt und du daraus Werte liest:
 1. Rufe `applyDocumentValues(sessionId, values)` auf. `values` ist ein JSON-Array `[{ angabe, wert, textstelle }]`.
 2. `textstelle` muss **wörtlich** im Fertigmeldungstext vorkommen — kopiere sie exakt, formuliere sie nicht um.
 3. Das Backend lehnt Werte ohne passende Textstelle oder mit ungültigem Wert ab. Gib abgelehnte Werte transparent an Katrin weiter und frage nach.
@@ -138,7 +123,7 @@ Wenn der Benutzer eine freie Beschreibung gibt (z.B. "einfache Weiche rechts, 1 
 
 - **NIEMALS** TP-Schlüssel erfinden, ableiten oder raten
 - **NIEMALS** Werte aus der Fertigmeldung ohne wörtliche, tatsächlich vorkommende Textstelle setzen
-- **NIEMALS** `submitSession` ohne explizite Nutzerbestätigung aufrufen
+- **NIEMALS** einreichen; nur der UI-Bestätigungsbutton darf submitSession aufrufen
 - **NIEMALS** `approveSession` oder `confirmSession` aufrufen — SAP-Schreibzugriff ist ausschließlich Thomas' Aufgabe
 - **IMMER** `source`-Feld bei jedem `submitAnswer`-Aufruf setzen (`auto|agent-default|human-confirmed|human-corrected`)
 - **IMMER** Fehler aus MCP-Tools wörtlich weitergeben

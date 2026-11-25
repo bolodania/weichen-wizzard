@@ -76,6 +76,17 @@ describe('submitSession', () => {
 
 // ── submitAnswer / TP-Ableitung aus dem Regelwerk ────────────────────────────
 describe('submitAnswer', () => {
+  test('invalid answer cannot be saved and leaves the session unchanged', async () => {
+    const sid = await createSession('NI', '999', 'EWR');
+    for (const answer of ['garbage', '2abc', '-1', '1.9']) {
+      await expect(POST('/wizard/submitAnswer', { sessionId: sid, questionId: 'zgv_ve', answer }))
+        .rejects.toMatchObject({ response: { status: 400 } });
+    }
+    await expect(POST('/wizard/submitAnswer', { sessionId: sid, questionId: 'invented', answer: '1' }))
+      .rejects.toMatchObject({ response: { status: 400 } });
+    const context = parseStringResponse(await GET(`/wizard/getSessionContext(sessionId='${sid}')`));
+    expect(context.answers).toEqual([]);
+  });
   test('Angabe setzen liefert TP-Vorschau aus dem Regelwerk', async () => {
     const sid = await createSession('NRB', '806', 'EWR');
     const res = await POST('/wizard/submitAnswer', {
@@ -134,6 +145,27 @@ describe('applyDocumentValues (Fertigmeldung + Zitatpflicht)', () => {
 
 // ── editAnswer ────────────────────────────────────────────────────────────────
 describe('editAnswer', () => {
+  test('draft activation validates answers, invalid draft cannot corrupt active data', async () => {
+    const sid = await createSession('NI', '997', 'EWR');
+    await completeSession(sid);
+    await POST('/wizard/submitSession', { sessionId: sid });
+    const active = `/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)`;
+    await POST(`${active}/WizardService.draftEdit`, {PreserveChanges: false});
+    await PATCH(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=false)/answers(session_sessionId='${sid}',questionId='zgv_ve',IsActiveEntity=false)`, {answer: 'invalid'});
+    await expect(POST(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=false)/WizardService.draftActivate`, {}))
+      .rejects.toMatchObject({response: {status: 400}});
+    expect((await GET(active)).data.derivedTPCount).toBe(25);
+  });
+  test('invalid edit via action and active PATCH is rejected', async () => {
+    const sid = await createSession('NI', '998', 'EWR');
+    await completeSession(sid);
+    await POST('/wizard/submitSession', {sessionId: sid});
+    await expect(POST('/wizard/editAnswer', {sessionId: sid, questionId: 'zgv_ve', answer: '2abc'}))
+      .rejects.toMatchObject({response: {status: 400}});
+    await expect(PATCH(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)/answers(session_sessionId='${sid}',questionId='zgv_ve',IsActiveEntity=true)`, {answer: '-1'}))
+      .rejects.toMatchObject({response: {status: 400}});
+    expect(parseStringResponse(await GET(`/wizard/getSessionState(sessionId='${sid}')`)).tps).toHaveLength(25);
+  });
   test('erlaubt Thomas das Bearbeiten einer eingereichten Session', async () => {
     const sid = await createSession('NI', '3001', 'EWR');
     await POST('/wizard/submitSession', { sessionId: sid });
@@ -151,6 +183,20 @@ describe('editAnswer', () => {
 
 // ── approveSession state machine ──────────────────────────────────────────────
 describe('approveSession', () => {
+  test('concurrent approval performs the SAP write once', async () => {
+    const sid = await createSession('NI', '995', 'EWR');
+    await completeSession(sid);
+    await POST('/wizard/submitSession', {sessionId: sid});
+    const spy = jest.spyOn(flService, 'bulkCreateFunctionalLocations');
+    try {
+      const results = await Promise.allSettled([
+        POST('/wizard/approveSession', {sessionId: sid}),
+        POST('/wizard/approveSession', {sessionId: sid}),
+      ]);
+      expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+      expect(spy).toHaveBeenCalledTimes(1);
+    } finally { spy.mockRestore(); }
+  });
   test('gibt eingereichte Session frei und liefert angelegte TPs (Mock)', async () => {
     const sid = await createSession('NI', '4001', 'EWR');
     await completeSession(sid);
@@ -276,7 +322,7 @@ describe('PoC correctness regressions', () => {
       sessionId: sid, values: JSON.stringify([{ angabe: 'zgv_ve', wert: '8', textstelle: '8 Verschlussebenen' }]),
     });
     const result = await POST('/wizard/uploadDocument', {
-      sessionId: sid, filename: 'citation.pdf', contentB64: Buffer.from(text).toString('base64'),
+      sessionId: sid, filename: 'citation.txt', mimeType: 'text/plain', contentB64: Buffer.from(text).toString('base64'),
     });
     const analysis = JSON.parse(result.data.analysisJson);
     expect(analysis.nichtBelegteWerte).toEqual([]);
@@ -393,16 +439,30 @@ describe('DerivedTP-Hierarchie', () => {
 
 // ── PDF Upload & Analyse (M2: Dokument-Upload-Feature) ────────────────────────
 describe('uploadDocument & analyseDocument', () => {
+  test('answer correction invalidates document analysis and removes old citations', async () => {
+    const sid = await createSession('NI', '996', 'EWR');
+    await POST('/wizard/uploadDocument', {sessionId: sid, filename: 'values.txt', mimeType: 'text/plain',
+      contentB64: Buffer.from('Die Zungenvorrichtung hat 2 Verschlussebenen.').toString('base64')});
+    await POST('/wizard/applyDocumentValues', {sessionId: sid,
+      values: JSON.stringify([{angabe: 'zgv_ve', wert: '2', textstelle: '2 Verschlussebenen'}])});
+    await POST('/wizard/submitSession', {sessionId: sid});
+    await POST('/wizard/analyseDocument', {sessionId: sid, filename: 'values.txt'});
+    await POST('/wizard/editAnswer', {sessionId: sid, questionId: 'zgv_ve', answer: '3'});
+    const doc = await GET(`/wizard/SessionDocuments(sessionId='${sid}',filename='values.txt',IsActiveEntity=true)`);
+    expect(doc.data.analysisDoneAt).toBeNull();
+    const context = parseStringResponse(await GET(`/wizard/getSessionContext(sessionId='${sid}')`));
+    expect(context.answers.find(a => a.questionId === 'zgv_ve')).toMatchObject({answer: '3', beleg: null, herkunft: 'Manuell'});
+  });
   test('uploadDocument speichert PDF und analysiert Pflicht-/Optional-TPs', async () => {
     const sid = await createSession('NI', '8001', 'EWR');
     
     // Simuliere ein einfaches PDF (base64-kodiert)
-    const mockPdfContent = Buffer.from('%PDF-1.4 Testinhalt Weiche NI 8001').toString('base64');
+    const mockPdfContent = Buffer.from('Weiche NI 8001').toString('base64');
     
     const res = await POST('/wizard/uploadDocument', {
       sessionId: sid,
       filename: 'test-weiche.pdf',
-      mimeType: 'application/pdf',
+      mimeType: 'text/plain',
       contentB64: mockPdfContent
     });
 
@@ -428,11 +488,11 @@ describe('uploadDocument & analyseDocument', () => {
     const sid = await createSession('NI', '8002', 'EWR');
     
     // Erst hochladen
-    const mockPdf = Buffer.from('%PDF-1.4 Test').toString('base64');
+    const mockPdf = Buffer.from('Fertigmeldung Weiche').toString('base64');
     await POST('/wizard/uploadDocument', {
       sessionId: sid,
       filename: 'reanalyse-test.pdf',
-      mimeType: 'application/pdf',
+      mimeType: 'text/plain',
       contentB64: mockPdf
     });
 
@@ -463,44 +523,15 @@ describe('uploadDocument & analyseDocument', () => {
 
 // ── Approver Chat (M2: Chat-Feature für Approver) ─────────────────────────────
 describe('approverChat', () => {
-  test('approverChat gibt Antwort mit Kontext zurück', async () => {
-    const sid = await createSession('NI', '9001', 'EWR');
-    
-    const res = await POST('/wizard/approverChat', {
-      sessionId: sid,
-      contextId: '',
-      message: 'Welche Pflicht-TPs fehlen noch?'
-    });
-
-    expect(res.status).toBe(200);
-    const body = res.data.value ?? res.data;
-    expect(body.sessionId).toBe(sid);
-    expect(body.reply).toBeTruthy();
-    expect(typeof body.reply).toBe('string');
-    // contextId kann leer sein oder gefüllt werden
-    expect(body).toHaveProperty('contextId');
-  });
-
   test('approverChat gibt 400 bei fehlender message', async () => {
     const sid = await createSession('NI', '9002', 'EWR');
     await expect(POST('/wizard/approverChat', { sessionId: sid }))
       .rejects.toMatchObject({ response: { status: 400 } });
   });
 
-  test('approverChat funktioniert auch wenn Agent nicht erreichbar ist', async () => {
+  test('approverChat reports unavailable agent as 502', async () => {
     const sid = await createSession('NI', '9003', 'EWR');
-    
-    // Agent-URL auf ungültige Adresse setzen (wird im Code behandelt)
-    const res = await POST('/wizard/approverChat', {
-      sessionId: sid,
-      contextId: '',
-      message: 'Test bei nicht erreichbarem Agent'
-    });
-
-    expect(res.status).toBe(200);
-    const body = res.data.value ?? res.data;
-    // Die Antwort kann entweder eine Fehlermeldung oder eine Standard-Antwort sein
-    expect(body.reply).toBeTruthy();
-    expect(typeof body.reply).toBe('string');
+    await expect(POST('/wizard/approverChat', {sessionId: sid, message: 'Prüfen'}))
+      .rejects.toMatchObject({response: {status: 502}});
   });
 });

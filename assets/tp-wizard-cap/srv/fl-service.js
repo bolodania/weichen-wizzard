@@ -13,32 +13,14 @@ if (process.env.FL_MOCK === 'true') {
    */
 
   let s4hFl = null;
-  let s4hFlHier = null;
+
 
   async function getServices() {
     if (!s4hFl) {
       s4hFl = await cds.connect.to('S4H_FL');
     }
-    if (!s4hFlHier) {
-      s4hFlHier = await cds.connect.to('S4H_FLHIER');
-    }
-    return { s4hFl, s4hFlHier };
-  }
 
-  async function readForlaHierarchy(ds100) {
-    try {
-      const { s4hFlHier } = await getServices();
-      const result = await s4hFlHier.run(
-        SELECT.from('FunctionalLocationStructureList')
-          .where({ SuperiorFunctionalLocation: `${ds100}-----WE` })
-          .limit(200)
-      );
-      LOG.info(`readForlaHierarchy: found ${result.length} FL records for ${ds100}`);
-      return { ds100, functionalLocations: result };
-    } catch (err) {
-      LOG.error(`readForlaHierarchy failed: ${err.message}`);
-      return { ds100, functionalLocations: [], error: err.message };
-    }
+    return { s4hFl };
   }
 
   async function bulkCreateFunctionalLocations(tps) {
@@ -74,5 +56,5 @@ if (process.env.FL_MOCK === 'true') {
     }
   }
 
-  module.exports = { readForlaHierarchy, bulkCreateFunctionalLocations };
+  module.exports = { bulkCreateFunctionalLocations };
 }

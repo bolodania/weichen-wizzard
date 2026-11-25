@@ -90,13 +90,13 @@ entity WizardSession {
   switchNumber   : String(10);   // Weichennummer, z.B. "806"
   basicForm      : String(20);   // Grundbauform (Regelwerk vorhanden nur für EWR)
   fertigmeldung  : LargeString;  // Volltext der Fertigmeldung (Beleg-Quelle für Dokumentwerte)
-  answersJson    : String(4000); // JSON-Snapshot aller Antworten (Rückwärtskompatibilität)
+  answersJson    : LargeString; // Export-Snapshot; SessionAnswer ist die maßgebliche Quelle
   status         : String(20);   // open|submitted|editing|approved|created|failed
   derivedTPCount : Integer;
   createdAt      : DateTime;
   submittedAt    : DateTime;
   approvedAt     : DateTime;
-  creationResult : String(500);  // JSON-Zusammenfassung aus SAP
+  creationResult : LargeString;  // Ergebnis je TP aus SAP
   reviewComment  : String(500);  // optionale Notiz von Thomas
   answers        : Composition of many SessionAnswer  on answers.session   = $self;
   tps            : Composition of many DerivedTP      on tps.session       = $self;

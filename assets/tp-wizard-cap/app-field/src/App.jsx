@@ -46,7 +46,7 @@ const BASIC_FORMS = [
 ];
 
 export default function App() {
-  const { sessionId, messages, tpPreview, currentQuestion, status, error, start, sendAnswer, submit } = useAgentSession();
+  const { sessionId, messages, tpPreview, currentQuestion, status, error, start, sendAnswer, submit, back } = useAgentSession();
   const [ds100, setDs100]         = useState('');
   const [switchNum, setSwitchNum] = useState('');
   const [basicForm, setBasicForm] = useState('EWR');
@@ -86,7 +86,7 @@ export default function App() {
               <FormItem label={<Label required showColon>Grundbauform</Label>}>
                 <Select onChange={e => setBasicForm(e.detail.selectedOption.getAttribute('data-value'))}>
                   {BASIC_FORMS.map(bf => (
-                    <Option key={bf.value} data-value={bf.value}>{bf.label}</Option>
+                    <Option key={bf.value} data-value={bf.value} disabled={bf.value !== 'EWR'}>{bf.label}</Option>
                   ))}
                 </Select>
               </FormItem>
@@ -133,7 +133,7 @@ export default function App() {
     );
   }
 
-  const showSubmitSummary = status === 'all-answered';
+  const showSubmitSummary = ['all-answered', 'submitting'].includes(status);
 
   return (
     <>
@@ -149,7 +149,7 @@ export default function App() {
               tpCount={tpPreview.length}
               sessionId={sessionId}
               onConfirm={submit}
-              onBack={() => { /* handled by hook — go back to active to allow more answers */ }}
+              onBack={back}
               submitting={status === 'submitting'}
             />
           : <>

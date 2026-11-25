@@ -60,6 +60,15 @@ drei Apps mit `cf push` deployen, URLs verbinden, Kundendestination und AI Core
 konfigurieren sowie Benutzerrollen zuweisen. Der Destination-Name ist nicht vorbelegt;
 API-Pfad, EntitySet und Feldzuordnung sind konfigurierbar.
 
+Bereits konfigurierte CF-Installation komplett erneut deployen:
+
+```bash
+bash scripts/redeploy-cf.sh
+```
+
+Mit `--dry-run` zunächst nur den Ablauf prüfen. Bestehende Routen und Zugangsdaten
+bleiben erhalten; Neustarts verlieren die Daten im Speicher.
+
 ## Lokal starten
 
 Voraussetzungen: Node.js ≥22.12, CAP-CLI (`@sap/cds-dk`), Python 3.12.
@@ -109,6 +118,10 @@ Referenzfälle: NI/2006 → 25 TPs, NRB/806 → 110 TPs.
 - Eine Instanz je App; SQLite/Gespräche liegen im Speicher. Neustarts verlieren Daten.
 - `FL_MOCK=true` simuliert SAP-TP-Anlage; Destination-/LLM-Abfragen sind echt.
 - Offene Pflichtangaben oder leere TP-Strukturen verhindern die Freigabe.
+- Katalogwerte werden validiert; Einreichung erfolgt über den Bestätigungsbutton.
+  SessionAnswer ist die maßgebliche Datenquelle, nicht ein paralleler Prozess-Cache.
+- Dokumente: UTF-8-Text oder PDF mit Poppler. Regel-/Zitatprüfung ist keine OCR
+  und keine automatische Dokumentinterpretation.
 - Datensatzberechtigungen, getrennte Browserrollen und echter SAP-Schreibzugriff sind noch nicht vollständig umgesetzt.
 - Business Partner sind eine technische Value-Help-Beispielquelle, keine DS100-Betriebsstellen.
 

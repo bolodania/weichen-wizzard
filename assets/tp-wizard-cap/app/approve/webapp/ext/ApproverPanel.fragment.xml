@@ -14,9 +14,9 @@
     <HBox alignItems="Center" class="sapUiSmallMarginBottom">
       <u:FileUploader
         id="pdfUploader"
-        fileType="pdf"
-        mimeType="application/pdf"
-        placeholder="PDF-Datei auswählen..."
+        fileType="pdf,txt"
+        mimeType="application/pdf,text/plain"
+        placeholder="PDF- oder Textdatei auswählen..."
         width="400px"
         change=".extension.tp.wizard.approve.ext.ApproverPanel.onFileSelected"
         style="Emphasized"/>

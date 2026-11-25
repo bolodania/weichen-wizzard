@@ -9,18 +9,9 @@ const LOG = cds.log('fl-service-mock');
  * Returns success for all TPs — used for offline / Hackathon demo.
  */
 
-async function readForlaHierarchy(ds100) {
-  LOG.info(`[MOCK] readForlaHierarchy called for ds100=${ds100}`);
-  return {
-    ds100,
-    functionalLocations: [],
-    message: 'Mock: Forla hierarchy not loaded (offline mode)'
-  };
-}
-
 async function bulkCreateFunctionalLocations(tps) {
   LOG.info(`[MOCK] bulkCreateFunctionalLocations: creating ${tps.length} TPs`);
-  const created = tps.map(tp => tp.tpKey || tp.vorlaKey);
+  const created = tps.map(tp => tp.tpKey);
   LOG.info('[M4.achieved]: SAP-Schreibzugriff A21 erfolgreich — TPs im System angelegt (MOCK)');
   return {
     created,
@@ -29,4 +20,4 @@ async function bulkCreateFunctionalLocations(tps) {
   };
 }
 
-module.exports = { readForlaHierarchy, bulkCreateFunctionalLocations };
+module.exports = { bulkCreateFunctionalLocations };

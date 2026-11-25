@@ -1,3 +1,5 @@
+> Historische Spezifikation: nicht als Implementierungsanleitung ausführen. Aktueller Stand: README.md und docs/README-deployment-cf.md.
+
 # Specification: TP-Wizard Weiche
 
 > **Guidelines**: Read [guidelines.md](./guidelines.md) before executing ANY tasks below.

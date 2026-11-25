@@ -29,6 +29,17 @@ unmittelbare Logs; CF stellt den Container-Port bereit.
 ## Tests
 
 ```bash
+pip install -r requirements-test.txt
+pytest -o addopts='' tests prebuilt_tests/test_circuit_breaker.py \
+  prebuilt_tests/test_load_skill_resources.py prebuilt_tests/test_util_response_trimming.py \
+  prebuilt_tests/test_prompt_injection_detector.py
+```
+
+Erfassung und Prüfung haben getrennte Prompts/Werkzeuge. Der Agent kann niemals
+einreichen oder freigeben; Einreichung ist eine explizite UI-Aktion. A2A liefert
+Antworten pro Gesprächsrunde, kein Token-Streaming.
+
+```bash
 python -m unittest discover -s tests -p test_xsuaa_auth.py -v
 python -m unittest discover -s tests -p test_cap_tools.py -v
 ```

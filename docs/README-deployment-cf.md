@@ -152,6 +152,23 @@ Freigabe testen. In CF ist XSUAA automatisch aktiv; keine Test-/Provider-Flags n
 
 ## Fehlerbehebung und Updates
 
+### Alles mit einem Befehl erneut deployen
+
+Für eine bereits vollständig konfigurierte Installation, aus dem Repository-Hauptverzeichnis:
+
+```bash
+bash scripts/redeploy-cf.sh --dry-run  # Ablauf anzeigen, keine Änderungen
+bash scripts/redeploy-cf.sh          # CF-Ziel bestätigen, bauen/testen/deployen
+```
+
+Das Skript erhält die vorhandenen externen Routen, Kundendestination/API-Werte,
+AI-Core-Zugangsdaten und Ressourcengruppe. Es verbindet die Apps erneut, aktualisiert
+den XSUAA-Callback und startet alle drei Apps. Services/Benutzerrollen werden nicht
+angelegt und lokale `.env`-Dateien nicht übertragen. Neustarts verlieren PoC-Daten.
+Python-Tests benötigen ein venv mit Testabhängigkeiten; alternativ `AGENT_PYTHON`
+setzen. Für CI `--yes`, Tests nur ausdrücklich mit `--skip-tests` überspringen.
+Fehler stoppen den Ablauf; es gibt keinen automatischen Rollback.
+
 - **Forbidden / nur `openid`:** Benutzerrolle zuweisen und frisch anmelden.
 - **Destination 502:** CAP-Logs, exakten Namen, Bindings, Cloud Connector und API-Rechte prüfen.
 - **Werkzeuge fehlschlagen:** CAP_BASE_URL, XSUAA-Binding und technische Scopes prüfen.
@@ -162,4 +179,8 @@ Freigabe testen. In CF ist XSUAA automatisch aktiv; keine Test-/Provider-Flags n
   `cf unset-env tp-wizard-agent NAME` entfernen; sie werden nicht mehr verwendet.
 
 Eine Instanz je App, volatile Daten und kombinierte Browserrollen bleiben PoC-Grenzen.
+Deployment erfolgt ausschließlich mit CF-Buildpacks; Docker ist nicht vorgesehen.
+PDF benötigt Poppler im Laufzeitumfeld. Ohne Poppler Textdateien verwenden;
+Extraktionsfehler werden sichtbar abgewiesen. Die Analyse prüft Regeln/Zitate
+vorhandener Antworten und ist keine automatische Dokumentinterpretation.
 Destination-, Modell- und Tokenzugriff im Kundensystem verifizieren.

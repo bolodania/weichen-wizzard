@@ -8,11 +8,7 @@ const { ableitenTps, naechsteFrage, vorgaben, validiere, uebernehmeDokumentwerte
 
 const LOG = cds.log('wizard-service');
 
-// In-memory session store — primary store during active session lifetime.
-// After submitSession the session is also in the DB; _loadSessionFromDb
-// can rebuild it from there (e.g. after a server restart).
-const SESSION_STORE = new Map();
-
+const { getSession: _getSession, saveSnapshot, validateAnswer, correctAnswer, sourceOf } = require('./lib/session-repository');
 // Herkunft eines Angabe-Werts aus der Workflow-Quelle ableiten (falls nicht explizit gesetzt).
 function herkunftVon(a) {
   if (a.herkunft) return a.herkunft;
@@ -41,67 +37,6 @@ function _computeOpenHints(session) {
   return hints;
 }
 
-// Load a session from DB into SESSION_STORE (for server-restart resilience).
-async function _loadSessionFromDb(sessionId) {
-  const db = await cds.connect.to('db');
-  const row = await db.run(SELECT.one.from('tp.wizard.WizardSession').where({ sessionId }));
-  if (!row) return null;
-  const answers = JSON.parse(row.answersJson || '[]');
-  const session = { ...row, answers, tpPreview: null };
-  SESSION_STORE.set(sessionId, session);
-  return session;
-}
-
-// Retrieve session: memory first, DB fallback.
-async function _getSession(sessionId) {
-  return SESSION_STORE.get(sessionId) || (await _loadSessionFromDb(sessionId));
-}
-
-// Persist all SessionAnswer rows for a session.
-async function _upsertSessionAnswers(db, session, katalog) {
-  const eingabeById = new Map(katalog.eingaben.map((e) => [e.ID, e]));
-  for (const a of session.answers || []) {
-    const e = eingabeById.get(a.questionId);
-    await db.run(
-      UPSERT.into('tp.wizard.SessionAnswer').entries({
-        session_sessionId: session.sessionId,
-        questionId: a.questionId,
-        questionText: (e && e.frage) || a.questionId,
-        area: (e && e.bereich) || '',
-        answer: a.answer || '',
-        source: a.source || 'auto',
-        herkunft: herkunftVon(a),
-        beleg: a.beleg || null,
-        agentProposal: a.agentProposal || null,
-      }),
-    );
-  }
-}
-
-// Persist DerivedTP rows for a session — DELETE existing, then INSERT fresh.
-// Hierarchy (level, parentTpKey) comes directly from the rule engine.
-async function _upsertDerivedTPs(db, sessionId, tps) {
-  await db.run(DELETE.from('tp.wizard.DerivedTP').where({ session_sessionId: sessionId }));
-  for (const tp of tps) {
-    await db.run(
-      INSERT.into('tp.wizard.DerivedTP').entries({
-        session_sessionId: sessionId,
-        tpKey: tp.tpKey || '',
-        posNr: tp.posNr || '',
-        tpLabel: tp.tpLabel || '',
-        area: tp.area || '',
-        level: tp.level ?? 0,
-        parentTpKey: tp.parentTpKey,
-        isAutomatic: tp.isAutomatic ?? false,
-        planergruppe: tp.planergruppe || '',
-        klassen: tp.klassen || '',
-        regel: tp.regel ?? null,
-        muster: tp.muster || '',
-      }),
-    );
-  }
-}
-
 // Core approve logic — shared by unbound approveSession and bound Sessions.approve.
 async function _doApprove(sessionId, req) {
   const session = await _getSession(sessionId);
@@ -126,6 +61,10 @@ async function _doApprove(sessionId, req) {
   }
 
   const katalog = await ladeKatalog();
+  for (const a of session.answers) {
+    try { a.answer = validateAnswer(katalog, a.questionId, a.answer); }
+    catch (e) { return req.reject(422, e.message); }
+  }
   const { tps, offeneAngaben } = ableitenTps(katalog, session);
   if (offeneAngaben.length) {
     return req.reject(422, `Pflichtangaben fehlen: ${offeneAngaben.join(', ')}`);
@@ -138,6 +77,9 @@ async function _doApprove(sessionId, req) {
   }
 
   let result;
+  const claimed = await db.run(UPDATE('tp.wizard.WizardSession').set({ status: 'approved' })
+    .where({ sessionId, status: { in: ['submitted', 'editing'] } }));
+  if (!claimed) return req.reject(409, 'Session wird bereits freigegeben');
   session.approvedAt = new Date().toISOString();
   try {
     result = await flService.bulkCreateFunctionalLocations(tps);
@@ -198,16 +140,16 @@ module.exports = (srv) => {
     if (ds100.length > 10) return req.reject(400, 'Betriebsstelle darf maximal 10 Zeichen enthalten');
 
     const sessionId = uuidv4();
-    SESSION_STORE.set(sessionId, {
+    const db = await cds.connect.to('db');
+    await db.run(INSERT.into('tp.wizard.WizardSession').entries({
       sessionId,
       ds100,
       switchNumber,
       basicForm,
       fertigmeldung: req.data.fertigmeldung || null,
-      answers: [],
       status: 'open',
       createdAt: new Date().toISOString(),
-    });
+    }));
 
     LOG.info(`Session created: ${sessionId} für ${ds100} Weiche ${switchNumber} (${basicForm})`);
     return { sessionId, message: 'Session erstellt' };
@@ -221,22 +163,12 @@ module.exports = (srv) => {
     if (!session) return req.error(404, `Session ${sessionId} nicht gefunden`);
     if (session.status !== 'open') return req.error(409, 'Session ist bereits abgeschlossen');
 
-    const existingIdx = session.answers.findIndex((a) => a.questionId === questionId);
-    if (existingIdx >= 0) {
-      const prev = session.answers[existingIdx];
-      session.answers[existingIdx] = {
-        questionId,
-        answer,
-        source: resolvedSource,
-        agentProposal: prev.agentProposal ?? (prev.source === 'agent-default' ? prev.answer : null),
-      };
-    } else {
-      session.answers.push({ questionId, answer, source: resolvedSource, agentProposal: null });
-    }
-
     const katalog = await ladeKatalog();
-    const { tps } = ableitenTps(katalog, session);
-    session.tpPreview = tps;
+    let value, resolved;
+    try { value = validateAnswer(katalog, questionId, answer); resolved = sourceOf(resolvedSource); }
+    catch (e) { return req.reject(e.status || 400, e.message); }
+    correctAnswer(session, questionId, value, resolved);
+    const tps = await saveSnapshot(await cds.connect.to('db'), session, katalog);
 
     const nextQ = naechsteFrage(katalog, session);
 
@@ -260,6 +192,7 @@ module.exports = (srv) => {
     } catch (err) {
       return req.error(400, `values ist kein gültiges JSON: ${err.message}`);
     }
+    if (!Array.isArray(werte)) return req.reject(400, 'values muss ein JSON-Array sein');
 
     const katalog = await ladeKatalog();
     const { uebernommen, abgelehnt } = uebernehmeDokumentwerte(katalog, session, werte);
@@ -278,8 +211,7 @@ module.exports = (srv) => {
       else session.answers.push(eintrag);
     }
 
-    const { tps } = ableitenTps(katalog, session);
-    session.tpPreview = tps;
+    const tps = await saveSnapshot(await cds.connect.to('db'), session, katalog);
 
     return {
       sessionId,
@@ -315,6 +247,21 @@ module.exports = (srv) => {
     return JSON.stringify(offeneAngaben);
   });
 
+  srv.on('getSessionState', async (req) => {
+    const session = await _getSession(req.data.sessionId);
+    if (!session) return req.reject(404, 'Session nicht gefunden');
+    const katalog = await ladeKatalog();
+    return JSON.stringify({ status: session.status, question: naechsteFrage(katalog, session),
+      ...ableitenTps(katalog, session) });
+  });
+
+  srv.on('getSessionContext', async (req) => {
+    const session = await _getSession(req.data.sessionId);
+    if (!session) return req.reject(404, 'Session nicht gefunden');
+    return JSON.stringify({ sessionId: session.sessionId, status: session.status,
+      answers: session.answers, documentText: session.fertigmeldung || '' });
+  });
+
   // ── Export CSV ────────────────────────────────────────────────────────────
   srv.on('exportSessionCSV', async (req) => {
     const session = await _getSession(req.data.sessionId);
@@ -345,243 +292,73 @@ module.exports = (srv) => {
     return JSON.stringify(vorgaben(katalog, basicForm));
   });
 
-  // ── Bulk Submit With Defaults (agent shortcut — applies remaining defaults then submits) ──
-  srv.on('bulkSubmitWithDefaults', async (req) => {
-    const { sessionId } = req.data;
+  async function submit(sessionId, req, withDefaults = false) {
     const session = await _getSession(sessionId);
-    if (!session) return req.error(404, `Session ${sessionId} nicht gefunden`);
-    if (session.status !== 'open') {
-      return req.error(409, `Session hat Status "${session.status}" — bulkSubmitWithDefaults erfordert "open"`);
-    }
-
+    if (!session) return req.reject(404, 'Session nicht gefunden');
+    if (session.status !== 'open') return req.reject(409, 'Session ist bereits eingereicht');
     const katalog = await ladeKatalog();
-    const defaults = vorgaben(katalog, session.basicForm);
-    const answeredIds = new Set(session.answers.map((a) => a.questionId));
     let defaultedCount = 0;
-
-    for (const d of defaults) {
-      if (!answeredIds.has(d.questionId)) {
-        session.answers.push({ questionId: d.questionId, answer: d.defaultAnswer, source: 'agent-default', agentProposal: null });
+    if (withDefaults) for (const d of vorgaben(katalog, session.basicForm)) {
+      if (!session.answers.some((a) => a.questionId === d.questionId)) {
+        correctAnswer(session, d.questionId, validateAnswer(katalog, d.questionId, d.defaultAnswer), 'agent-default');
         defaultedCount++;
       }
     }
-
     session.status = 'submitted';
     session.submittedAt = new Date().toISOString();
+    await saveSnapshot(await cds.connect.to('db'), session, katalog);
+    return { sessionId, defaultedCount, status: 'submitted', message: 'Einreichung erfolgreich' };
+  }
+  srv.on('submitSession', (req) => submit(req.data.sessionId, req));
+  srv.on('bulkSubmitWithDefaults', (req) => submit(req.data.sessionId, req, true));
 
-    const db = await cds.connect.to('db');
-    const { tps } = ableitenTps(katalog, session);
-    session.tpPreview = tps;
-
-    await db.run(
-      INSERT.into('tp.wizard.WizardSession').entries({
-        sessionId: session.sessionId,
-        ds100: session.ds100,
-        switchNumber: session.switchNumber,
-        basicForm: session.basicForm,
-        fertigmeldung: session.fertigmeldung || null,
-        answersJson: JSON.stringify(session.answers),
-        status: session.status,
-        derivedTPCount: tps.length,
-        createdAt: session.createdAt,
-        submittedAt: session.submittedAt,
-        approvedAt: null,
-        creationResult: null,
-        reviewComment: null,
-      }),
-    );
-
-    await _upsertSessionAnswers(db, session, katalog);
-    await _upsertDerivedTPs(db, session.sessionId, tps);
-
-    LOG.info(`bulkSubmitWithDefaults: ${defaultedCount} Vorgaben übernommen, Session ${sessionId} eingereicht`);
-    return {
-      sessionId,
-      defaultedCount,
-      status: 'submitted',
-      message: `${defaultedCount} Standardwerte übernommen — Einreichung erfolgreich`,
-    };
-  });
-
-  // ── Submit Session (Katrin hands off to Thomas) ───────────────────────────
-  srv.on('submitSession', async (req) => {
-    const { sessionId } = req.data;
+  async function edit(sessionId, questionId, answer, req) {
     const session = await _getSession(sessionId);
-    if (!session) return req.error(404, `Session ${sessionId} nicht gefunden`);
-    if (session.status !== 'open') return req.error(409, `Session hat Status "${session.status}" — submitSession erfordert "open"`);
-
-    session.status = 'submitted';
-    session.submittedAt = new Date().toISOString();
-
-    const db = await cds.connect.to('db');
+    if (!session) return req.reject(404, 'Session nicht gefunden');
+    if (!['submitted', 'editing'].includes(session.status)) return req.reject(409, 'Bearbeitung erfordert submitted/editing');
     const katalog = await ladeKatalog();
-    const { tps } = ableitenTps(katalog, session);
-    session.tpPreview = tps;
-
-    await db.run(
-      INSERT.into('tp.wizard.WizardSession').entries({
-        sessionId: session.sessionId,
-        ds100: session.ds100,
-        switchNumber: session.switchNumber,
-        basicForm: session.basicForm,
-        fertigmeldung: session.fertigmeldung || null,
-        answersJson: JSON.stringify(session.answers),
-        status: session.status,
-        derivedTPCount: tps.length,
-        createdAt: session.createdAt,
-        submittedAt: session.submittedAt,
-        approvedAt: null,
-        creationResult: null,
-        reviewComment: null,
-      }),
-    );
-
-    await _upsertSessionAnswers(db, session, katalog);
-    await _upsertDerivedTPs(db, session.sessionId, tps);
-
-    LOG.info(`Session eingereicht und persistiert: ${sessionId}`);
-    return { sessionId, message: 'Einreichung erfolgreich — wartet auf Freigabe durch Thomas' };
-  });
-
-  // ── Edit Answer (Thomas corrections via unbound action) ───────────────────
-  srv.on('editAnswer', async (req) => {
-    const { sessionId, questionId, answer } = req.data;
-    const session = await _getSession(sessionId);
-    if (!session) return req.error(404, `Session ${sessionId} nicht gefunden`);
-    if (!['submitted', 'editing'].includes(session.status)) {
-      return req.error(409, `Session hat Status "${session.status}" — editAnswer erfordert "submitted" oder "editing"`);
-    }
-
-    if (session.status === 'submitted') session.status = 'editing';
-
-    const existingIdx = session.answers.findIndex((a) => a.questionId === questionId);
-    if (existingIdx >= 0) {
-      session.answers[existingIdx] = { ...session.answers[existingIdx], answer, source: 'thomas-edited', herkunft: 'Manuell' };
-    } else {
-      session.answers.push({ questionId, answer, source: 'thomas-edited', herkunft: 'Manuell', agentProposal: null });
-    }
-
-    const db = await cds.connect.to('db');
-    const katalog = await ladeKatalog();
-    const { tps } = ableitenTps(katalog, session);
-    session.tpPreview = tps;
-
-    await db.run(
-      UPDATE('tp.wizard.WizardSession')
-        .set({ answersJson: JSON.stringify(session.answers), status: session.status, derivedTPCount: tps.length })
-        .where({ sessionId }),
-    );
-
-    const e = katalog.eingaben.find((x) => x.ID === questionId);
-    await db.run(
-      UPSERT.into('tp.wizard.SessionAnswer').entries({
-        session_sessionId: sessionId,
-        questionId,
-        questionText: (e && e.frage) || questionId,
-        area: (e && e.bereich) || '',
-        answer,
-        source: 'thomas-edited',
-        herkunft: 'Manuell',
-        beleg: null,
-        agentProposal: session.answers[existingIdx]?.agentProposal || null,
-      }),
-    );
-
-    await _upsertDerivedTPs(db, sessionId, tps);
-
+    let value;
+    try { value = validateAnswer(katalog, questionId, answer); }
+    catch (e) { return req.reject(e.status || 400, e.message); }
+    session.status = 'editing';
+    correctAnswer(session, questionId, value, 'thomas-edited');
+    const tps = await saveSnapshot(await cds.connect.to('db'), session, katalog);
     return { sessionId, tpPreview: JSON.stringify(tps) };
-  });
+  }
+  srv.on('editAnswer', (req) => edit(req.data.sessionId, req.data.questionId, req.data.answer, req));
 
   // ── Protect Sessions header fields from PATCH ────────────────────────────
   srv.before('UPDATE', 'Sessions', (req) => {
     delete req.data.ds100;
     delete req.data.switchNumber;
     delete req.data.basicForm;
-  });
-
-  // ── Sync answersJson + DerivedTP after draft activation (and any Sessions UPDATE) ─────
-  srv.after('UPDATE', 'Sessions', async (result, req) => {
-    const sessionId =
-      (Array.isArray(result) ? result[0]?.sessionId : result?.sessionId) ??
-      req?.data?.sessionId ??
-      req?.params?.[0]?.sessionId;
-    if (!sessionId) return;
-
-    const db = await cds.connect.to('db');
-    const answerRows = await db.run(SELECT.from('tp.wizard.SessionAnswer').where({ session_sessionId: sessionId }));
-    if (!answerRows.length) return;
-
-    const answers = answerRows.map((r) => ({
-      questionId: r.questionId,
-      answer: r.answer,
-      source: r.source,
-      herkunft: r.herkunft,
-      beleg: r.beleg,
-      agentProposal: r.agentProposal,
-    }));
-
-    const row = await db.run(SELECT.one.from('tp.wizard.WizardSession').where({ sessionId }));
-    if (!row) return;
-
-    const newStatus = row.status === 'submitted' ? 'editing' : row.status;
-    await db.run(UPDATE('tp.wizard.WizardSession').set({ answersJson: JSON.stringify(answers), status: newStatus }).where({ sessionId }));
-
-    const mem = SESSION_STORE.get(sessionId);
-    if (mem) {
-      mem.answers = answers;
-      mem.status = newStatus;
+    for (const field of ['status', 'createdAt', 'submittedAt', 'approvedAt', 'derivedTPCount', 'creationResult', 'answersJson']) {
+      delete req.data[field];
     }
-
-    const katalog = await ladeKatalog();
-    const sessionRow = mem || { basicForm: row.basicForm, ds100: row.ds100, switchNumber: row.switchNumber, answers };
-    const { tps } = ableitenTps(katalog, { ...sessionRow, answers });
-    await _upsertDerivedTPs(db, sessionId, tps);
-    await db.run(UPDATE('tp.wizard.WizardSession').set({ derivedTPCount: tps.length }).where({ sessionId }));
-    if (mem) mem.tpPreview = tps;
   });
 
-  // ── Edit Answer via OData PATCH (Fiori Elements inline editing) ───────────
+  srv.before('UPDATE', 'Sessions', async (req) => {
+    if (!req.data.answers) return;
+    const session = await _getSession(req.data.sessionId || req.params?.[0]?.sessionId);
+    if (session && !['submitted', 'editing'].includes(session.status)) return req.reject(409, 'Session ist nicht bearbeitbar');
+    const katalog = await ladeKatalog();
+    for (const a of req.data.answers) {
+      if (a.answer === undefined) continue;
+      try { a.answer = validateAnswer(katalog, a.questionId, a.answer); }
+      catch (e) { return req.reject(e.status || 400, e.message); }
+      a.source = 'thomas-edited'; a.herkunft = 'Manuell'; a.beleg = null;
+    }
+  });
+  srv.after('UPDATE', 'Sessions', async (_result, req) => {
+    const sessionId = req.data.sessionId || req.params?.[0]?.sessionId;
+    const session = await _getSession(sessionId);
+    if (!session) return;
+    if (session.status === 'submitted') session.status = 'editing';
+    await saveSnapshot(await cds.connect.to('db'), session, await ladeKatalog());
+  });
   srv.on('UPDATE', 'SessionAnswers', async (req) => {
     const keys = req.params[req.params.length - 1];
-    const sessionId = keys.session_sessionId || req.params[0].sessionId;
-    const { questionId } = keys;
-    const { answer } = req.data;
-
-    const session = await _getSession(sessionId);
-    if (!session) return req.error(404, `Session ${sessionId} nicht gefunden`);
-    if (!['submitted', 'editing'].includes(session.status)) {
-      return req.error(409, `Session hat Status "${session.status}" — Bearbeitung erfordert "submitted" oder "editing"`);
-    }
-
-    if (session.status === 'submitted') session.status = 'editing';
-
-    const existingIdx = session.answers.findIndex((a) => a.questionId === questionId);
-    if (existingIdx >= 0) {
-      session.answers[existingIdx] = { ...session.answers[existingIdx], answer, source: 'thomas-edited', herkunft: 'Manuell' };
-    } else {
-      session.answers.push({ questionId, answer, source: 'thomas-edited', herkunft: 'Manuell', agentProposal: null });
-    }
-
-    const db = await cds.connect.to('db');
-    await db.run(UPDATE('tp.wizard.WizardSession').set({ answersJson: JSON.stringify(session.answers), status: session.status }).where({ sessionId }));
-
-    await db.run(
-      UPSERT.into('tp.wizard.SessionAnswer').entries({
-        session_sessionId: sessionId,
-        questionId,
-        answer,
-        source: 'thomas-edited',
-        herkunft: 'Manuell',
-        beleg: null,
-        agentProposal: session.answers[existingIdx]?.agentProposal || null,
-      }),
-    );
-
-    const { tps } = ableitenTps(await ladeKatalog(), session);
-    session.tpPreview = tps;
-    session.derivedTPCount = tps.length;
-    await _upsertDerivedTPs(db, sessionId, tps);
-    await db.run(UPDATE('tp.wizard.WizardSession').set({ derivedTPCount: tps.length }).where({ sessionId }));
+    await edit(keys.session_sessionId || req.params[0].sessionId, keys.questionId, req.data.answer, req);
     return req.data;
   });
 
@@ -601,8 +378,7 @@ module.exports = (srv) => {
 
     const result = [];
     for (const row of dbSessions) {
-      const mem = SESSION_STORE.get(row.sessionId);
-      const answers = mem?.answers ?? JSON.parse(row.answersJson || '[]');
+      const { answers } = await _getSession(row.sessionId);
       result.push({
         sessionId: row.sessionId,
         ds100: row.ds100,
@@ -610,7 +386,7 @@ module.exports = (srv) => {
         basicForm: row.basicForm,
         status: row.status,
         submittedAt: row.submittedAt,
-        derivedTPCount: row.derivedTPCount ?? (mem?.tpPreview || []).length,
+        derivedTPCount: row.derivedTPCount || 0,
         openHintCount: _computeOpenHints({ answers }).length,
       });
     }
@@ -631,35 +407,26 @@ module.exports = (srv) => {
     if (!sessionId || !filename || !contentB64) {
       return req.error(400, 'sessionId, filename und contentB64 sind Pflichtfelder');
     }
+    if (filename.length > 200 || /[\/\\]/.test(filename)) return req.reject(400, 'Ungültiger Dateiname');
 
     const session = await _getSession(sessionId);
     if (!session) return req.reject(404, `Session ${sessionId} nicht gefunden`);
     const db = await cds.connect.to('db');
 
-    // Decode base64 → Buffer
-    const content = Buffer.from(contentB64, 'base64');
     const uploadedAt = new Date().toISOString();
-
-    // Best-effort text extraction: try pdftotext (poppler), fall back to raw string scan
-    let extractedText = '';
-    const fs = require('fs');
-    const tmpIn = require('path').join(require('os').tmpdir(), `tp-doc-${uuidv4()}.pdf`);
+    let extracted;
     try {
-      const { execFileSync } = require('child_process');
-      fs.writeFileSync(tmpIn, content);
-      extractedText = execFileSync('pdftotext', [tmpIn, '-'], { timeout: 10000 }).toString();
-    } catch (_) {
-      // pdftotext not available — use raw text extraction as fallback
-      extractedText = content.toString('latin1').replace(/[^\x20-\x7E\n\r\t\u00C0-\u00FF]/g, ' ');
-    } finally {
-      if (fs.existsSync(tmpIn)) fs.unlinkSync(tmpIn);
+      extracted = await require('./lib/documents').extractDocument(contentB64, mimeType);
+    } catch (error) {
+      return req.reject(error.status || 422, error.message);
     }
+    const { content, text: extractedText } = extracted;
+    session.fertigmeldung = extractedText;
+    await db.run(UPDATE('tp.wizard.WizardSession').set({ fertigmeldung: extractedText }).where({ sessionId }));
 
     // Run rule-based analysis
     const katalog = await ladeKatalog();
-    const analysisJson = session
-      ? JSON.stringify(_analyseDocument(katalog, session, extractedText))
-      : JSON.stringify({ error: 'Session nicht gefunden' });
+    const analysisJson = JSON.stringify(_analyseDocument(katalog, session, extractedText));
 
     // Persist document
     await db.run(
@@ -675,7 +442,7 @@ module.exports = (srv) => {
       }),
     );
 
-    LOG.info(`[M2.achieved]: Dokument hochgeladen und analysiert: ${filename} für Session ${sessionId}`);
+    LOG.info(`Dokumenttext extrahiert und Regel-/Zitatprüfung erstellt: ${filename}`);
     return { sessionId, filename, analysisJson };
   });
 
@@ -716,6 +483,7 @@ module.exports = (srv) => {
     const db = await cds.connect.to('db');
     const session = await _getSession(sessionId);
     let sessionCtx = '';
+    if (!session) return req.reject(404, 'Session nicht gefunden');
     if (session) {
       const docRow = await db.run(
         SELECT.one(['analysisJson']).from('tp.wizard.SessionDocument').where({ sessionId }).orderBy({ uploadedAt: 'desc' }),
@@ -747,36 +515,7 @@ module.exports = (srv) => {
     let reply = '';
     let newContextId = contextId || '';
     try {
-      const agentAuthorization = await agentClient.authorization(req.headers.authorization);
-      const payload = JSON.stringify(body);
-      const agentReply = await new Promise((resolve, reject) => {
-        const urlObj = agentClient.agentUrl();
-        const http = require(urlObj.protocol === 'https:' ? 'https' : 'http');
-        const options = {
-          hostname: urlObj.hostname,
-          port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
-          path: urlObj.pathname || '/',
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload),
-            ...(agentAuthorization ? { Authorization: agentAuthorization } : {}),
-          },
-          timeout: 120000,
-        };
-        const r = http.request(options, (res) => {
-          let data = '';
-          res.on('data', (chunk) => { data += chunk; });
-          res.on('end', () => {
-            if (res.statusCode >= 400) reject(new Error(`Agent HTTP ${res.statusCode}`));
-            else resolve(data);
-          });
-        });
-        r.on('error', reject);
-        r.on('timeout', () => r.destroy(new Error('Agent timeout')));
-        r.write(payload);
-        r.end();
-      });
-      const parsed = JSON.parse(agentReply);
+      const parsed = await agentClient.sendMessage(body, req.headers.authorization, 'review');
       reply =
         parsed.result?.artifacts?.[0]?.parts?.[0]?.text ??
         parsed.result?.status?.message?.parts?.[0]?.text ??
@@ -784,7 +523,7 @@ module.exports = (srv) => {
       newContextId = parsed.result?.contextId || contextId || '';
     } catch (err) {
       LOG.warn(`Agent nicht erreichbar: ${err.message}`);
-      reply = `Agent nicht erreichbar (${err.message}). Bitte stellen Sie sicher, dass der Python-Agent läuft.`;
+      return req.reject(502, 'Agent-Prüfung fehlgeschlagen. Details im Serverlog.');
     }
 
     return { sessionId, contextId: newContextId, reply };
@@ -793,7 +532,6 @@ module.exports = (srv) => {
 
 // ── Regelwerk-Analyse eines Dokuments ─────────────────────────────────────────
 function _analyseDocument(katalog, session, extractedText) {
-  const { ableitenTps } = require('./lib/weiche');
   const { tps, offeneAngaben, angaben } = ableitenTps(katalog, session);
 
   // Alle Pflicht-TPs (Regeln ohne optionale Bedingung) vs. tatsächlich abgeleitete
@@ -847,6 +585,7 @@ function _analyseDocument(katalog, session, extractedText) {
     `${nichtBelegte.length} Belege nicht im Dokument gefunden`;
 
   return {
+    scope: 'Regel- und Zitatprüfung vorhandener Antworten; keine automatische Dokumentinterpretation',
     summary,
     tpsAbgeleitet: tps.length,
     pflichtTps,

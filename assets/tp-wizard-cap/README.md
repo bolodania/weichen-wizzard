@@ -73,7 +73,8 @@ npm run build      # CAP + aktuelle app-field bauen (nicht den alten React-Wizar
 - Die Einreichung darf offene Angaben zur Prüfung enthalten. **Freigabe** wird dagegen
   bei fehlenden Pflichtangaben oder leerer TP-Struktur mit HTTP 422 abgewiesen.
 - PDF-Textextraktion nutzt optional `pdftotext` (Poppler). Ohne dieses Programm ist
-  die Extraktion nur ein Best-effort-Fallback, kein zuverlässiger PDF-Parser.
+  keine PDF-Extraktion möglich; alternativ UTF-8-Textdateien hochladen. Defekte PDFs
+  werden abgewiesen, nicht aus Rohbytes interpretiert. Keine OCR verfügbar.
 - Echter SAP-Zugriff ist nicht Bestandteil dieser Offline-Demo; externe CDS-Modelle
   und die Payload-/Destination-Anbindung müssen dafür separat vervollständigt werden.
 

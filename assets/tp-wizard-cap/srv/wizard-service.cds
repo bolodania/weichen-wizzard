@@ -146,6 +146,8 @@ service WizardService @(path: '/wizard', requires: ['WizardUser', 'CAPTools']) {
   function getNextQuestion(sessionId : String)  returns String; // JSON
   function getTPPreview(sessionId    : String)  returns String; // JSON
   function getOpenFields(sessionId   : String)  returns String; // JSON
+  function getSessionState(sessionId : String) returns String; // authoritative status/question/preview
+  function getSessionContext(sessionId : String) returns String; // answers and extracted text
   function exportSessionCSV(sessionId: String)  returns String; // CSV string
 
   function health() returns String;

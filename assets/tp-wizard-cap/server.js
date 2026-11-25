@@ -69,6 +69,7 @@ cds.on('bootstrap', (app) => {
         'Content-Type': req.headers['content-type'] || 'application/json',
         ...(req.headers['content-length'] ? { 'Content-Length': req.headers['content-length'] } : {}),
         ...(auth ? { Authorization: auth } : {}),
+        'X-Wizard-Mode': 'field',
       },
       timeout: 120000,
     }, (response) => {

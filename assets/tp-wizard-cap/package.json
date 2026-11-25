@@ -1,7 +1,7 @@
 {
   "name": "tp-wizard-cap",
   "version": "1.0.0",
-  "description": "TP-Wizard Weiche – CAP backend + React/UI5 frontend",
+  "description": "TP-Wizard Weiche \u2013 CAP backend + React/UI5 frontend",
   "engines": {
     "node": ">=22.12"
   },
@@ -9,7 +9,7 @@
     "start": "cds-serve",
     "start:poc": "cds-serve --in-memory",
     "dev": "cds watch",
-    "build": "cds build --production && npm run build:ui",
+    "build": "cds compile srv --to csn > /dev/null && npm run build:ui",
     "build:ui": "npm --prefix app-field ci && npm --prefix app-field run build",
     "test": "jest --forceExit"
   },
@@ -25,8 +25,7 @@
     "@cap-js/cds-test": "^1.0.2",
     "@types/jest": "^29",
     "axios": "^1",
-    "jest": "^29",
-    "supertest": "^6"
+    "jest": "^29"
   },
   "jest": {
     "testEnvironment": "node",
@@ -48,8 +47,12 @@
     },
     "requires": {
       "auth": {
-        "[production]": { "kind": "xsuaa" },
-        "[development]": { "kind": "mocked" }
+        "[production]": {
+          "kind": "xsuaa"
+        },
+        "[development]": {
+          "kind": "mocked"
+        }
       },
       "db": {
         "kind": "sqlite",
@@ -61,13 +64,6 @@
       "S4H_FL": {
         "kind": "odata-v2",
         "model": "srv/external/API_FUNCTIONALLOCATION",
-        "credentials": {
-          "destination": "S4H_FL"
-        }
-      },
-      "S4H_FLHIER": {
-        "kind": "odata-v2",
-        "model": "srv/external/FUNCNLLOCSTRUCLIST_0001",
         "credentials": {
           "destination": "S4H_FL"
         }

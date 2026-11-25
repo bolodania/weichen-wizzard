@@ -51,7 +51,7 @@ def test_skill_milestone_logging():
         "..", "app", "skills", "weichen-dialog", "SKILL.md"
     )
     content = open(skill_path).read()
-    assert "M5.achieved" in content, "Skill must reference M5 milestone"
+    assert 'Bestätigungsbutton' in content or 'UI-Bestätigungsbutton' in content
 
 
 def test_agent_loads_skill_on_weiche_query():

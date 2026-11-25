@@ -15,7 +15,7 @@ from a2a.utils.errors import ServerError
 
 from agent import SampleAgent
 from load_skill_resources import get_load_skill_resource_tool
-from mcp_providers.cap import get_cap_tools
+from mcp_providers.cap import get_cap_tools, wizard_mode
 from prompt_injection_detector import wrap_tool
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,7 @@ class AgentExecutor(A2AAgentExecutor):
     def __init__(self):
         self.agent = SampleAgent()
         self.skill_tools = get_load_skill_resource_tool()
+        self._tools = {}
 
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
         """Execute the agent and stream results back via A2A protocol.
@@ -49,7 +50,10 @@ class AgentExecutor(A2AAgentExecutor):
         # Load MCP tools — user token is read from context var set by JWTContextMiddleware
         tools = []
         try:
-            tools = await get_cap_tools()
+            mode = wizard_mode.get()
+            if mode not in self._tools:
+                self._tools[mode] = await get_cap_tools(mode)
+            tools = self._tools[mode]
             if not tools:
                 logger.warning("No CAP tools configured")
             else:
@@ -57,6 +61,7 @@ class AgentExecutor(A2AAgentExecutor):
                 logger.info("Loaded %d MCP tool(s) for agent execution: %s", len(tools), tool_names)
         except Exception as e:
             logger.error(f"Failed to load CAP tools: {e}")
+            raise ServerError(error=InternalError()) from e
 
         tools = [*tools, *self.skill_tools]
 
@@ -71,6 +76,10 @@ class AgentExecutor(A2AAgentExecutor):
                 require_user_input = item["require_user_input"]
                 content = item["content"]
 
+                if item.get('failed'):
+                    await updater.update_status(TaskState.failed,
+                        new_agent_text_message(content, task.context_id, task.id), final=True)
+                    break
                 if require_user_input:
                     # Agent requests more input
                     await updater.update_status(

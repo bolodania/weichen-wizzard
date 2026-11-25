@@ -11,7 +11,7 @@ from urllib.parse import quote
 
 import httpx
 from xsuaa_auth import cap_headers, enabled
-from langchain_core.tools import BaseTool, StructuredTool
+from langchain_core.tools import BaseTool, StructuredTool, ToolException
 from pydantic import Field, create_model
 from util import minify_json, truncate_response
 
@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Per-request user token, set by JWTContextMiddleware via set_user_token()
 _user_token_context: ContextVar[str | None] = ContextVar("user_token", default=None)
+wizard_mode = ContextVar('wizard_mode', default='field')
 
 _TOOLS_FILE = Path(__file__).parent.parent.parent / "cap-tools.json"
 
@@ -28,7 +29,7 @@ def set_user_token(token: str | None) -> Token:
     return _user_token_context.set(token)
 
 
-def _build_cap_tools() -> list[BaseTool]:
+def _build_cap_tools(mode='field') -> list[BaseTool]:
     """Build HTTP-backed LangChain tools from the checked-in CAP tool catalog."""
     tool_data = json.loads(_TOOLS_FILE.read_text(encoding="utf-8"))
 
@@ -36,6 +37,8 @@ def _build_cap_tools() -> list[BaseTool]:
 
     for _server_slug, server in tool_data.get("servers", {}).items():
         for tool_name, tool_def in server.get("tools", {}).items():
+            if mode not in tool_def.get('modes', ['field', 'review']):
+                continue
             description = tool_def.get("description", "")
             input_schema = tool_def.get("input_schema", {})
 
@@ -85,7 +88,7 @@ def _build_cap_tools() -> list[BaseTool]:
                     endpoint = _ep
                     for k, v in kwargs.items():
                         if v is not None:
-                            endpoint = endpoint.replace(f"{{{k}}}", str(v))
+                            endpoint = endpoint.replace("{" + k + "}", quote(str(v).replace("'", "''"), safe=''))
                     base_url = os.environ.get("CAP_BASE_URL", "")
                     if not base_url:
                         if enabled():
@@ -106,7 +109,10 @@ def _build_cap_tools() -> list[BaseTool]:
                         else:
                             body = {k: v for k, v in kwargs.items() if v is not None}
                             resp = await client.post(url, json=body, headers=headers, timeout=30.0)
-                    resp.raise_for_status()
+                    try:
+                        resp.raise_for_status()
+                    except httpx.HTTPStatusError as error:
+                        raise ToolException(f"CAP request failed: HTTP {resp.status_code}") from error
                     return truncate_response(minify_json(resp.text))
 
                 coroutine = _http_coroutine
@@ -127,8 +133,8 @@ def _build_cap_tools() -> list[BaseTool]:
     return sorted(tools, key=lambda tool: tool.name)
 
 
-async def get_cap_tools() -> list[BaseTool]:
-    return _build_cap_tools()
+async def get_cap_tools(mode='field') -> list[BaseTool]:
+    return _build_cap_tools(mode)
 
 def get_user_sub() -> str:
     """Extract the JWT subject claim from the current request's token.
