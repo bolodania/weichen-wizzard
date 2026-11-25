@@ -1,0 +1,54 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Node
+node_modules/
+npm-debug.log*
+.npm
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.coverage
+coverage.json
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Environment / Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+creds.json
+default-env.json
+.cdsrc-private.json
+
+# CAP / CDS
+gen/
+_out/
+*.db
+*.sqlite
+
+# IDE & Tools
+.vscode/settings.json
+.idea/
+*.swp
+.claude/
+.superpowers/
+
+# Generated mockups (rebuild via docs/mockups/generator.js)
+docs/mockups/
+
+# Sensitive documents — kept locally only
+Unterlagen DB/
+Kopie von Fragen.xlsx
+*.xlsx
+*.docx
