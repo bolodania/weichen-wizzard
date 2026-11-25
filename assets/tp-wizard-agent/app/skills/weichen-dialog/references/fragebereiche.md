@@ -1,27 +1,46 @@
-# Fragebereiche — 19 Bereiche des Fragenkatalogs
+# Fragebereiche — Eingabenkatalog des Regelwerks
 
-| Nr | Bereich | Typ | Automatisch |
-|----|---------|-----|-------------|
-| 1  | Örtlichkeit | Betriebsstelle + Strecken-TP | Nein |
-| 2  | Objektgruppe | Auswahl (WE, GL, LS, ...) | Nein |
-| 3  | Grundbauform | Bauform + Radius + Stw-Bauform | Nein |
-| 4  | Zgv (Zungenvorrichtung) | Menge, Ja/Nein, Automatisch | Nein (teilweise) |
-| 5  | Herzstück | Menge, Ja/Nein, Bauart | Nein |
-| 6  | Radlenker | Ja/Nein, Radsensor optional | Nein |
-| 7  | Antrieb | Bauform, Menge | Nein |
-| 8  | Stränge | STR-A + STR-B | **JA — automatisch** |
-| 9  | Schwellen | SW | **JA — automatisch** |
-| 10 | Weichensignal | Anzahl + Lichtpunkte | Nein |
-| 11 | Weichensteuerung | Ja/Nein | Nein |
-| 12 | Weichenüberwachung | Ja/Nein | Nein |
-| 13 | Zwischenschiene | ZSBA-Einträge | **JA — automatisch** |
-| 14 | Isolierstöße | 14 mögliche Positionen | Nein |
-| 15 | Hemmschuhauswurfvorrichtung (HAV) | Einbauorte | Nein |
-| 16 | Prellbock | Ja/Nein + Signaltyp | Nein |
-| 17 | Gleisstücke | 3 mögliche Bereiche | Nein |
-| 18 | Erdung | Ja/Nein | Nein |
-| 19 | Weichenheizung | Typ (Elektrisch/Gas/Öl/Dampf) | Nein |
+Die Fragen stammen vollständig aus dem Eingabenkatalog (`Eingaben`, 41 Angaben). Jede Angabe trägt
+ihren fachlichen **Bereich**, den Fragetext, den Typ und ggf. eine Sichtbarkeitsbedingung (`sichtbarWenn`),
+eine Formel (`formel` → abgeleitet, wird nie gefragt) oder eine Vorgabe (`vorgabe` → Standardwert).
 
-## Automatische Bereiche (kein Benutzerdialog)
-- Bereiche 8, 9, 13: TPs werden IMMER angelegt, unabhängig von Benutzereingaben
-- Diese Bereiche werden im TP-Preview als "✅ automatisch" markiert
+Der Agent fragt NICHT nach festen Bereichen, sondern folgt `getNextQuestion`, das die nächste sichtbare,
+noch offene, nicht abgeleitete Angabe liefert.
+
+## Bereiche (in Katalogreihenfolge)
+
+| Bereich | Inhalt |
+|---------|--------|
+| Grunddaten | Grundbauform, Radius, Rückbaustatus |
+| Zungenvorrichtung | Verschlussebenen, Rollvorrichtungen, Zungenprüfer, Handverschlüsse … |
+| Herzstück | Bauart (0 = starr, 1–2 = beweglich), Verschlussebenen, Rollvorrichtungen |
+| Radlenker | Radsensoren |
+| Antrieb | Antriebsart (elektromechanisch/hydraulisch), Anzahl Antriebe Zgv/Hz |
+| Weichensignal | Anzahl Signale, Lichtpunkte je Signal |
+| Weichensteuerung | SIWES |
+| Weichenüberwachung | Weichenüberwachung |
+| Gleisstücke | Einbauorte Gleisstücke |
+| Prellbock | Prellbock, Hemmschuh-Einbauorte |
+| Hemmschuhauswurfvorrichtung | HAV-Einbauorte |
+| Isolierstöße | Einbauorte der Isolierstöße (Mehrfachauswahl) |
+| Weichenheizung | Heizungstyp (keine/EEH/GHE/ODH/OUH/SOELH/SPH) |
+
+## Angabe-Typen
+
+| Typ | Bedeutung |
+|-----|-----------|
+| Menge | ganze Zahl ≥ 0 (auch als Anzahl für Laufnummern) |
+| Zahl | Dezimalzahl |
+| JaNein | Ja / Nein |
+| Auswahl | genau ein Wert aus der Werteliste |
+| Einbauorte | mehrere Werte aus der Werteliste (Mehrfachauswahl) |
+| Text | Freitext |
+
+## Abgeleitete Angaben (werden nie gefragt)
+
+- `hz_beweglich` = `hz_bauart BT 1;2`
+- `hydraulisch` = `antrieb_art EQ hydraulisch`
+- `zgv_ueg` = `zgv_wa GE 1 UND zgv_ve GT @zgv_wa`
+- `hz_ueg` = `hz_beweglich EQ Ja UND hz_wa GE 1 UND hz_ve GT @hz_wa`
+
+Automatisch angelegte TPs (Regeln ohne Bedingung, z.B. Stränge `STR-A`, Erdung `EV---`) erfordern keine Frage.

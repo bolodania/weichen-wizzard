@@ -1,0 +1,349 @@
+muster;positionsnummer;bezeichnung;klassen;planergruppe
+STR-A;0020;Strang A;Derzeit keine;O
+STR-B;0030;Strang B;Derzeit keine;O
+STR-C;0040;Strang C;Derzeit keine;O
+STR-D;0050;Strang D;Derzeit keine;O
+STRAD;0060;Strang AD;Derzeit keine;O
+STRBC;0070;Strang BC;Derzeit keine;O
+WGWA-;0100;Gleisstück WA;Derzeit keine;O
+WGWA-SWAL-HAV-;0120;Hemmschuhauswurfvorrichtung;WE_OHAV / WE_OHAV;O
+WGWA-SWAL-ISO1;0130;Schiene WA links Iso;OISO / Isolierstoß;O
+WGWA-SWAL-;0110;Schiene WA links;WE_SI / WE_Weichenschienen;O
+WGWA-SWAR-;0140;Schiene WA rechts;WE_SI / WE_Weichenschienen;O
+WGWA-SWAR-HAV-;0150;Hemmschuhauswurfvorrichtung;WE_OHAV / WE_OHAV;O
+WGWA-SWAR-ISO1;0160;Schiene WA rechts Iso;OISO / Isolierstoß;O
+WGWA-PR---;0170;Prellbock WA;O_PRELLBOCK / Prellbock , O_PRELLBOCK1 / Prellbock_1;O
+WGWA-PR---SH0-;0180;Sh0 Halt Fahrverbot;S_BEFRISTUNG / Befristung;O
+WGWA-PR---SH2-;0190;Sh2 Schutzhalt;S_BEFRISTUNG / Befristung;O
+ZUBA-;0300;Zungenvorrichtungsbereich A;Derzeit keine;O
+ZUBA-ZGV-L;0310;Zungenvorrichtung links;WE_ZV / WE_Zungenvorrichtung;O
+ZUBA-ZGV-LISO1;0320;Zungenvorrichtung links Iso;OISO / Isolierstoß;O
+ZUBA-ZGV-R;0330;Zungenvorrichtung rechts;WE_ZV / WE_Zungenvorrichtung;O
+ZUBA-ZGV-RISO1;0340;Zungenvorrichtung rechts Iso;OISO / Isolierstoß;O
+ZUBA-ZR-01;0350;Zungenrollvorrichtungspaar N;WE_ZUNGENROLLVORRI / WE_Zungenrollvorrichtung;S
+ZUBA-WA-01;0360;Antrieb N;DIAGNOSE_WK / Diagnose_WK, WE_ANTRIEB / WE_Antrieb, UMW_ANLAGE / Umweltrelevante Anlage;S
+ZUBA-WA-01ANZ1;0370;Antriebszylinder 1 (Geberzyl.);Derzeit keine;S
+ZUBA-WA-01USZ1;0380;Umstellzylinder 1 (Verriegelung);Derzeit keine;S
+ZUBA-WA-01VBL-;0390;Hydr.Umstellsys Verbindungsleit.;Derzeit keine;S
+ZUBA-WA-01UEG-;0400;Übertragungsgestänge N;Derzeit keine;S
+ZUBA-WA-01PRSS;0410;Abschließbarer Prüferschieber;SSTAWEAT / StwAWKrGl Antriebe;S
+ZUBA-VE-01;0420;Verschlussebene N;WE_VERSCHLUESSE/ WE_Verschlüsse;S
+ZUBA-VE-01VSLL;0430;Verschluss links;Derzeit keine;S
+ZUBA-VE-01VSLR;0440;Verschluss rechts;Derzeit keine;S
+ZUBA-VE-01VSFA;0450;Verschlussfachabdeckung;WE_VSFA / WE_VSFA;S
+ZUBA-ZP-01;0460;Zungenprüfkontakt N;WE_ZUNGENPRÜFER / WE_Zungenprüfer;S
+ZUBA-ZP-01VSFA;0470;Zungenprüfkontaktfachabdeckung;WE_VSFA / WE_VSFA;S
+ZUBA-ZPR01;0480;mechanischer Zungenprüfer N;WE_ZUNGENPRÜFER / WE_Zungenprüfer;S
+ZUBA-RI--1;0490;Mech.Riegel .......;Derzeit keine;S
+ZUBA-RHS-1;0500;Riegelhandschloss;WE_RHS / WE_Riegelhandschloss;S
+ZUBA-DV-01;0510;Dauerverschluss N (verschweißt);WE_DAUERVERSCHLUSS / Dauerverschluss;S
+ZUBA-FWIP1;0520;Federwippe;Derzeit keine;S
+ZUBA-HV-01;0530;Fest angebauter Handverschluss N;Derzeit keine;S
+ZUBB-;0700;Zungenvorrichtungsbereich B;Derzeit keine;O
+ZUBB-ZGV-L;0710;Zungenvorrichtung links;WE_ZV / WE_Zungenvorrichtung;O
+ZUBB-ZGV-LISO1;0720;Zungenvorrichtung links Iso;OISO / Isolierstoß;O
+ZUBB-ZGV-R;0730;Zungenvorrichtung rechts;WE_ZV / WE_Zungenvorrichtung;O
+ZUBB-ZGV-RISO1;0740;Zungenvorrichtung rechts Iso;OISO / Isolierstoß;O
+ZUBB-ZR-01;0750;Zungenrollvorrichtungspaar N;WE_ZV / WE_Zungenvorrichtung;S
+ZUBB-WA-01;0760;Antrieb N;DIAGNOSE_WK / Diagnose_WK, WE_ANTRIEB / WE_Antrieb, UMW_ANLAGE / Umweltrelevante Anlage;S
+ZUBB-WA-01ANZ1;0770;Antriebszylinder 1 (Geberzyl.);Derzeit keine;S
+ZUBB-WA-01USZ1;0780;Umstellzylinder 1 (Verriegelung);Derzeit keine;S
+ZUBB-WA-01VBL-;0790;Hydr.Umstellsys Verbindungsleit.;Derzeit keine;S
+ZUBB-WA-01UEG-;0800;Übertragungsgestänge N;Derzeit keine;S
+ZUBB-WA-01PRSS;0810;Abschließbarer Prüferschieber;SSTAWEAT / StwAWKrGl Antriebe;S
+ZUBB-VE-01;0820;Verschlussebene N;WE_VERSCHLUESSE / WE_Verschlüsse;S
+ZUBB-VE-01VSLL;0830;Verschluss links;Derzeit keine;S
+ZUBB-VE-01VSLR;0840;Verschluss rechts;Derzeit keine;S
+ZUBB-VE-01VSFA;0850;Verschlussfachabdeckung;WE_VSFA / WE_VSFA;S
+ZUBB-ZP-01;0860;Zungenprüfkontakt N;WE_ZUNGENPRÜFER / WE_Zungenprüfer;S
+ZUBB-ZP-01VSFA;0870;Zungenprüfkontaktfachabdeckung;WE_VSFA / WE_VSFA;S
+ZUBB-ZPR01;0880;mechanischer Zungenprüfer N;WE_ZUNGENPRÜFER / WE_Zungenprüfer;S
+ZUBB-RI--1;0890;Mech.Riegel .......;Derzeit keine;S
+ZUBB-RHS-1;0900;Riegelhandschloss;WE_RHS / WE_Riegelhandschloss;S
+ZUBB-HV-01;0910;Fest angebauter Handverschluss N;Derzeit keine;S
+ZSBA-;1100;Zwischenschienenbereich A;Derzeit keine;O
+ZSBA-BSRLL;1110;Zwischenschiene links Bs-Rl;WE_SI / WE_Weichenschienen;O
+ZSBA-BSRLLISO1;1120;Zwischenschiene links Bs-Rl Iso;OISO / Isolierstoß;O
+ZSBA-BSRLLHAV-;1130;Hemmschuhauswurfvorrichtung;WE_OHAV/ WE_OHAV;O
+ZSBA-ZGHZL;1140;Zwischenschiene links Zg-Hz;WE_SI / WE_Weichenschienen;O
+ZSBA-ZGHZLISO1;1150;Zwischenschiene links Zg-Hz Iso;OISO / Isolierstoß;O
+ZSBA-BSRLR;1160;Zwischenschiene rechts Bs-Rl;WE_SI / WE_Weichenschienen;O
+ZSBA-BSRLRISO1;1170;Zwischenschiene rechts Bs-Rl Iso;OISO / Isolierstoß;O
+ZSBA-BSRLRHAV-;1180;Hemmschuhauswurfvorrichtung;WE_OHAV/ WE_OHAV;O
+ZSBA-ZGHZR-;1190;Zwischenschiene rechts Zg-Hz;WE_SI / WE_Weichenschienen;O
+ZSBA-ZGHZR;1190;Zwischenschiene rechts Zg-Hz;WE_SI / WE_Weichenschienen;O
+ZSBA-ZGHZRISO1;1200;Zwischenschiene rechts Zg-Hz Iso;OISO / Isolierstoß;O
+ZSBB-;1300;Zwischenschienenbereich B;Derzeit keine;O
+ZSBB-BSHZL;1310;Zwischenschiene links Bs-Hz;WE_SI / WE_Weichenschienen;O
+ZSBB-BSHZLISO1;1320;Zwischenschiene links Bs-Hz Iso;OISO / Isolierstoß;O
+ZSBB-ZGRLL;1330;Zwischenschiene links Zg-Rl;WE_SI / WE_Weichenschienen;O
+ZSBB-ZGRLLISO1;1340;Zwischenschiene links Zg-Rl Iso;OISO / Isolierstoß;O
+ZSBB-BSHZR;1350;Zwischenschiene rechts Bs-Hz;WE_SI / WE_Weichenschienen;O
+ZSBB-BSHZRISO1;1360;Zwischenschiene rechts Bs-Hz Iso;OISO / Isolierstoß;O
+ZSBB-ZGRLR;1370;Zwischenschiene rechts Zg-Rl;WE_SI / WE_Weichenschienen;O
+ZSBB-ZGRLRISO1;1380;Zwischenschiene rechts Zg-Rl Iso;OISO / Isolierstoß;O
+ZSBC-;1600;Zwischenschienenbereich C;Derzeit keine;O
+ZSBC-RLRLL-;1610;Zwischenschiene links Rl-Rl;WE_SI / WE_Weichenschienen;O
+ZSBC-RLRLL;1610;Zwischenschiene links Rl-Rl;WE_SI / WE_Weichenschienen;O
+ZSBC-RLRLLISO1;1620;Zwischenschiene links Rl-Rl Iso;OISO / Isolierstoß;O
+ZSBC-HZHZL;1630;Zwischenschiene links Hz-Hz;WE_SI / WE_Weichenschienen;O
+ZSBC-HZHZLISO1;1640;Zwischenschiene links Hz-Hz Iso;OISO / Isolierstoß;O
+ZSBC-RLRLR;1650;Zwischenschiene rechts Rl-Rl;WE_SI / WE_Weichenschienen;O
+ZSBC-RLRLRISO1;1660;Zwischenschiene rechts Rl-Rl Iso;OISO / Isolierstoß;O
+ZSBC-HZHZR;1670;Zwischenschiene rechts Hz-Hz;WE_SI / WE_Weichenschienen;O
+ZSBC-HZHZRISO1;1680;Zwischenschiene rechts Hz-Hz Iso;OISO / Isolierstoß;O
+HZ-AC;1800;Herzstückbereich Strang A/C;Derzeit keine;O
+HZ-ACHZ---;1810;Herzstück A/C;WE_HZ / WE_Herzstück;O
+HZ-ACRLL--;1820;Radlenker A/C links;WE_RL / WE_Radlenker;O
+HZ-ACRLL--ISO1;1830;Radlenker A/C links Iso;OISO / Isolierstoß;O
+HZ-ACRLR--;1840;Radlenker A/C rechts;WE_RL / WE_Radlenker;O
+HZ-ACRLR--ISO1;1850;Radlenker A/C rechts Iso;OISO / Isolierstoß;O
+HZ-AB;1900;Herzstückbereich Strang A/B;Derzeit keine;O
+HZ-ABHZ---;1910;Herzstück A/B;WE_HZ / WE_Herzstück;O
+HZ-ABRLL--;1920;Radlenker A/B links;WE_RL / WE_Radlenker;O
+HZ-ABRLL--ISO1;1930;Radlenker A/B links Iso;OISO / Isolierstoß;O
+HZ-ABRLR--;1940;Radlenker A/B rechts;WE_RL / WE_Radlenker;O
+HZ-ABRLR--ISO1;1950;Radlenker A/B rechts Iso;OISO / Isolierstoß;O
+HZ-ABWA-01;1960;Antrieb N;DIAGNOSE_WK/ Diagnose_WK, WE_ANTRIEB / WE_Antrieb, UMW_ANLAGE / Umweltrelevante Anlage,;S
+HZ-ABWA-01ANZ1;1970;Antriebszylinder 1 (Geberzyl.);Derzeit keine;S
+HZ-ABWA-01USZ1;1980;Umstellzylinder 1 (Verriegelung);Derzeit keine;S
+HZ-ABWA-01VBL-;1990;Hydr.Umstellsys Verbindungsleit.;Derzeit keine;S
+HZ-ABWA-01UEG-;2000;Übertragungsgestänge N;Derzeit keine;S
+HZ-ABVE--1;2010;Verschlussebene N;WE_VERSCHLUESSE / WE_Verschlüsse;S
+HZ-ABVE--1VSLL;2100;Verschluss links;Derzeit keine;S
+HZ-ABVE--1VSLR;2110;Verschluss rechts;Derzeit keine;S
+HZ-ABVE--1VSFA;2120;Verschlussfachabdeckung;WE_VSFA / WE_VSFA;S
+HZ-ABZR-01;2130;Zungenrollvorrichtungspaar N;WE_ZUNGENROLLVORRI / WE_Zungenrollvorrichtung;S
+HZ-ABNH--1;2140;Bewegl. Herzstück Niederhalter 1;WE_HZ_NIEDERHALTER / WE_HZ_Niederhalter;S
+HZ-ABRSA-1;2150;Radsensor f. Auffahrortung ....;WE_RADSENSOR / WE_RADSENSOR;S
+HZ-ABHV-01;2160;Fest angebauter Handverschluss N;Derzeit keine;S
+HZ-BC;2200;Herzstückbereich Strang B/C;Derzeit keine;O
+HZ-BCHZ---;2210;Herzstück B/C;WE_HZ / WE_Herzstück;O
+HZ-BCRLL--;2220;Radlenker B/C links;WE_RL / WE_Radlenker;O
+HZ-BCRLL--ISO1;2230;Radlenker B/C links Iso;OISO / Isolierstoß;O
+HZ-BCRLR--;2240;Radlenker B/C rechts;WE_RL / WE_Radlenker;O
+HZ-BCRLR--ISO1;2250;Radlenker B/C rechts Iso;OISO / Isolierstoß;O
+WGESA;2400;Gleisstück WE Strang A;Derzeit keine;O
+WGESASWEL-;2410;Schiene WE Strang A links;WE_SI / WE_Weichenschienen;O
+WGESASWEL-HAV-;2420;Hemmschuhauswurfvorrichtung;WE_OHAV / WE_OHAV;O
+WGESASWEL-ISO1;2430;Schiene WE Strang A links Iso;OISO / Isolierstoß;O
+WGESASWER-;2440;Schiene WE Strang A rechts;WE_SI / WE_Weichenschienen;O
+WGESASWER-HAV-;2450;Hemmschuhauswurfvorrichtung;WE_OHAV / WE_OHAV;O
+WGESASWER-ISO1;2460;Schiene WE Strang A rechts Iso;OISO / Isolierstoß;O
+WGESAPR---;2470;Prellbock Strang A WE;"O_PRELLBOCK / Prellbock; O_PRELLBOCK1 / Prellbock_1";O
+WGESAPR---SH0-;2480;Sh0 Halt Fahrverbot;S_BEFRISTUNG / Befristung;O
+WGESAPR---SH2-;2490;Sh2 Schutzhalt;S_BEFRISTUNG / Befristung;O
+WGESB;2600;Gleisstück WE Strang B;Derzeit keine;O
+WGESBSWEL-;2610;Schiene WE Strang B links;WE_SI / WE_Weichenschienen;O
+WGESBSWEL-HAV-;2620;Hemmschuhauswurfvorrichtung;WE_OHAV / WE_OHAV;O
+WGESBSWEL-ISO1;2630;Schiene WE Strang B links Iso;OISO / Isolierstoß;O
+WGESBSWER-;2640;Schiene WE Strang B rechts;WE_SI / WE_Weichenschienen;O
+WGESBSWER-HAV-;2650;Hemmschuhauswurfvorrichtung;WE_OHAV / WE_OHAV;O
+WGESBSWER-ISO1;2660;Schiene WE Strang B rechts Iso;OISO / Isolierstoß;O
+WGESBPR---;2670;Prellbock Strang B;O_PRELLBOCK / Prellbock, O_PRELLBOCK1 / Prellbock_1;O
+WGESBPR---SH0-;2680;Sh0 Halt Fahrverbot;S_BEFRISTUNG / Befristung;O
+WGESBPR---SH2-;2690;Sh2 Schutzhalt;S_BEFRISTUNG / Befristung;O
+WGESC;2800;Gleisstück WE Strang C;Derzeit keine;O
+WGESCSWEL-;2810;Schiene WE Strang C links;WE_SI / WE_Weichenschienen;O
+WGESCSWEL-HAV-;2820;Hemmschuhauswurfvorrichtung;WE_OHAV / WE_OHAV;O
+WGESCSWEL-ISO1;2830;Schiene WE Strang C links Iso;OISO / Isolierstoß;O
+WGESCSWER-;2840;Schiene WE Strang C rechts;WE_SI / WE_Weichenschienen;O
+WGESCSWER-HAV-;2850;Hemmschuhauswurfvorrichtung;WE_OHAV / WE_OHAV;O
+WGESCSWER-ISO1;2860;Schiene WE Strang C rechts Iso;OISO / Isolierstoß;O
+WGESCPR---;2870;Prellbock Strang C;O_PRELLBOCK / Prellbock, O_PRELLBOCK1 / Prellbock_1;O
+WGESCPR---SH0-;2880;Sh0 Halt Fahrverbot;S_BEFRISTUNG / Befristung;O
+WGESCPR---SH2-;2890;Sh2 Schutzhalt;S_BEFRISTUNG / Befristung;O
+WGWAA;3100;Gleisstück WA A;Derzeit keine;O
+WGWAASWAL-;3110;Schiene Weichenanfang A links;WE_SI / WE_Weichenschienen;O
+WGWAASWAL-HAV-;3120;Hemmschuhauswurfvorrichtung;WE_OHAV / WE_OHAV;O
+WGWAASWAL-ISO1;3130;Schiene Weichenanfang A links Iso;OISO / Isolierstoß;O
+WGWAASWAR-;3140;Schiene Weichenanfang A rechts;WE_SI / WE_Weichenschienen;O
+WGWAASWAR-HAV-;3150;Hemmschuhauswurfvorrichtung;WE_OHAV / WE_OHAV;O
+WGWAASWAR-ISO1;3160;Schiene Weichenanfang A re. Iso;OISO / Isolierstoß;O
+WGWAAPR---;3170;Prellbock Gleisstück WA A;O_PRELLBOCK / Prellbock, O_PRELLBOCK1 / Prellbock_1;O
+WGWAAPR---SH0-;3180;Sh0 Halt Fahrverbot;S_BEFRISTUNG / Befristung;O
+WGWAAPR---SH2-;3190;Sh2 Schutzhalt;S_BEFRISTUNG / Befristung;O
+WGWAB;3300;Gleisstück WA B;Derzeit keine;O
+WGWABSWAL-;3310;Schiene Weichenanfang B links;WE_SI / WE_Weichenschienen;O
+WGWABSWAL-HAV-;3320;Hemmschuhauswurfvorrichtung;WE_OHAV / WE_OHAV;O
+WGWABSWAL-ISO1;3330;Schiene Weichenanfang B links Iso;OISO / Isolierstoß;O
+WGWABSWAR-;3340;Schiene Weichenanfang B rechts;WE_SI / WE_Weichenschienen;O
+WGWABSWAR-HAV-;3350;Hemmschuhauswurfvorrichtung;WE_OHAV / WE_OHAV;O
+WGWABSWAR-ISO1;3360;Schiene Weichenanfang B re. Iso;OISO / Isolierstoß;O
+WGWABPR---;3370;Prellbock Gleisstück WA B;O_PRELLBOCK / Prellbock, O_PRELLBOCK1 / Prellbock_1;O
+WGWABPR---SH0-;3380;Sh0 Halt Fahrverbot;S_BEFRISTUNG / Befristung;O
+WGWABPR---SH2-;3390;Sh2 Schutzhalt;S_BEFRISTUNG / Befristung;O
+WGWAC;3500;Gleisstück WA C;Derzeit keine;O
+WGWACSWAL-;3510;Schiene Weichenanfang C links;WE_SI / WE_Weichenschienen;O
+WGWACSWAL-HAV-;3520;Hemmschuhauswurfvorrichtung;WE_OHAV / WE_OHAV;O
+WGWACSWAL-ISO1;3530;Schiene Weichenanfang C links Iso;OISO / Isolierstoß;O
+WGWACSWAR-;3540;Schiene Weichenanfang C rechts;WE_SI / WE_Weichenschienen;O
+WGWACSWAR-HAV-;3550;Hemmschuhauswurfvorrichtung;WE_OHAV / WE_OHAV;O
+WGWACSWAR-ISO1;3560;Schiene Weichenanfang C re. Iso;OISO / Isolierstoß;O
+WGWACPR---;3570;Prellbock Gleisstück WA C;O_PRELLBOCK / Prellbock, O_PRELLBOCK1 / Prellbock_1;O
+WGWACPR---SH0-;3580;Sh0 Halt Fahrverbot;S_BEFRISTUNG / Befristung;O
+WGWACPR---SH2-;3590;Sh2 Schutzhalt;S_BEFRISTUNG / Befristung;O
+WGWAD;3700;Gleisstück WA D;Derzeit keine;O
+WGWADSWAL-;3710;Schiene Weichenanfang D links;WE_SI / WE_Weichenschienen;O
+WGWADSWAL-HAV-;3720;Hemmschuhauswurfvorrichtung;WE_OHAV / WE_OHAV;O
+WGWADSWAL-ISO1;3730;Schiene Weichenanfang D links Iso;OISO / Isolierstoß;O
+WGWADSWAR-;3740;Schiene Weichenanfang D rechts;WE_SI / WE_Weichenschienen;O
+WGWADSWAR-HAV-;3750;Hemmschuhauswurfvorrichtung;WE_OHAV / WE_OHAV;O
+WGWADSWAR-ISO1;3760;Schiene Weichenanfang D re. Iso;OISO / Isolierstoß;O
+WGWADPR---;3770;Prellbock Gleisstück WA D;O_PRELLBOCK / Prellbock, O_PRELLBOCK1 / Prellbock_1;O
+WGWADPR---SH0-;3780;Sh0 Halt Fahrverbot;S_BEFRISTUNG / Befristung;O
+WGWADPR---SH2-;3790;Sh2 Schutzhalt;S_BEFRISTUNG / Befristung;O
+ZUBAB;3900;Zungenvorrichtungsbereich AB;Derzeit keine;O
+ZUBABZGVAL;3910;Zungenvorrichtung A links;WE_ZV / WE_Zungenvorrichtung;O
+ZUBABZGVALISO1;3920;Zungenvorrichtung A links Iso;OISO / Isolierstoß;O
+ZUBABZGVAR;3930;Zungenvorrichtung A rechts;WE_ZV / WE_Zungenvorrichtung;O
+ZUBABZGVARISO1;3940;Zungenvorrichtung A rechts Iso;OISO / Isolierstoß;O
+ZUBABZGVBL;3950;Zungenvorrichtung B links;WE_ZV / WE_Zungenvorrichtung;O
+ZUBABZGVBLISO1;3960;Zungenvorrichtung B links Iso;OISO / Isolierstoß;O
+ZUBABZGVBR;3970;Zungenvorrichtung B rechts;WE_ZV / WE_Zungenvorrichtung;O
+ZUBABZGVBRISO1;3980;Zungenvorrichtung B rechts Iso;OISO / Isolierstoß;O
+ZUBABZRA01;3990;Zungenrollvorrichtungspaar A N;WE_ZUNGENROLLVORRI / WE_Zungenrollvorrichtung;S
+ZUBABZRB01;4000;Zungenrollvorrichtungspaar B N;WE_ZUNGENROLLVORRI / WE_Zungenrollvorrichtung;S
+ZUBABZP-01;4010;Zungenprüfkontakt N;WE_ZUNGENPRÜFER / WE_Zungenprüfer;S
+ZUBABZP-01VSFA;4020;Zungenprüfkontaktfachabdeckung;WE_VSFA / WE_VSFA;S
+ZUBABZPR01;4030;mechanischer Zungenprüfer N;WE_ZUNGENPRÜFER / WE_Zungenprüfer;S
+ZUBABWAAB1;4040;Antrieb AB;DIAGNOSE_WK / Diagnose_WK, WE_ANTRIEB / WE_Antrieb, UMW_ANLAGE / Umweltrelevante Anlage;S
+ZUBABWAAB1ANZ1;4050;Antriebszylinder 1 (Geberzyl.);Derzeit keine;S
+ZUBABWAAB1USZ1;4060;Umstellzylinder 1 (Verriegelung);Derzeit keine;S
+ZUBABWAAB1VBL-;4070;Hydr.Umstellsys Verbindungsleit.;Derzeit keine;S
+ZUBABWAAB1UEG-;4080;Übertragungsgestänge N;Derzeit keine;S
+ZUBABWAAB1UEG;4080;Übertragungsgestänge N;Derzeit keine;S
+ZUBABWAAB1PRSS;4090;Abschließbarer Prüferschieber;SSTAWEAT / StwAWKrGl Antriebe;S
+ZUBABVEA-1;4100;Verschlussebene A N;WE_VERSCHLUESSE / WE_Verschlüsse;S
+ZUBABVEA-1VSLL;4110;Verschluss links;Derzeit keine;S
+ZUBABVEA-1VSLR;4120;Verschluss rechts;Derzeit keine;S
+ZUBABVEA-1VSFA;4130;Verschlussfachabdeckung;WE_VSFA / WE_VSFA;S
+ZUBABVEB-1;4140;Verschlussebene B N;WE_VERSCHLUESSE / WE_Verschlüsse;S
+ZUBABVEB-1VSLL;4150;Verschluss links;Derzeit keine;S
+ZUBABVEB-1VSLR;4160;Verschluss rechts;Derzeit keine;S
+ZUBABVEB-1VSFA;4170;Verschlussfachabdeckung;WE_VSFA / WE_VSFA;S
+ZUBABRI--1;4180;Mech.Riegel .......;WE_VSFA / WE_VSFA;S
+ZUBABRHS-1;4190;Riegelhandschloss;WE_RHS / WE_Riegelhandschloss;S
+ZUBABHV-01;4200;Fest angebauter Handverschluss N;Derzeit keine;S
+ZUBCD;4300;Zungenvorrichtungsbereich CD;Derzeit keine;O
+ZUBCDZGVCL;4310;Zungenvorrichtung C links;WE_ZV / WE_Zungenvorrichtung;O
+ZUBCDZGVCLISO1;4320;Zungenvorrichtung C links Iso;OISO / Isolierstoß;O
+ZUBCDZGVCR;4330;Zungenvorrichtung C rechts;WE_ZV / WE_Zungenvorrichtung;O
+ZUBCDZGVCRISO1;4340;Zungenvorrichtung C rechts Iso;OISO / Isolierstoß;O
+ZUBCDZGVDL;4350;Zungenvorrichtung D links;WE_ZV / WE_Zungenvorrichtung;O
+ZUBCDZGVDLISO1;4360;Zungenvorrichtung D links Iso;OISO / Isolierstoß;O
+ZUBCDZGVDR;4370;Zungenvorrichtung D rechts;WE_ZV / WE_Zungenvorrichtung;O
+ZUBCDZGVDRISO1;4380;Zungenvorrichtung D rechts Iso;OISO / Isolierstoß;O
+ZUBCDZRC01;4390;Zungenrollvorrichtungspaar C N;WE_ZUNGENROLLVORRI / WE_Zungenrollvorrichtung;S
+ZUBCDZRD01;4400;Zungenrollvorrichtungspaar D N;WE_ZUNGENROLLVORRI / WE_Zungenrollvorrichtung;S
+ZUBCDZP-01;4410;Zungenprüfkontakt N;WE_ZUNGENPRÜFER / WE_Zungenprüfer;S
+ZUBCDZP-01VSFA;4420;Zungenprüfkontaktfachabdeckung;WE_ZUNGENPRÜFER / WE_Zungenprüfer;S
+ZUBCDZPR01;4430;mechanischer Zungenprüfer N;WE_ZUNGENPRÜFER / WE_Zungenprüfer;S
+ZUBCDWACD1;4440;Antrieb CD;DIAGNOSE_WK / Diagnose_WK, WE_ANTRIEB / WE_Antrieb, UMW_ANLAGE / Umweltrelevante Anlage;S
+ZUBCDWACD1ANZ1;4450;Antriebszylinder 1 (Geberzyl.);Derzeit keine;S
+ZUBCDWACD1USZ1;4460;Umstellzylinder 1 (Verriegelung);Derzeit keine;S
+ZUBCDWACD1VBL-;4470;Hydr.Umstellsys Verbindungsleit.;Derzeit keine;S
+ZUBCDWACD1UEG-;4480;Übertragungsgestänge N;Derzeit keine;S
+ZUBCDWACD1PRSS;4490;Abschließbarer Prüferschieber;SSTAWEAT / StwAWKrGl Antriebe;S
+ZUBCDVEC-1;4500;Verschlussebene C N;WE_VERSCHLUESSE/ WE_Verschlüsse;S
+ZUBCDVEC-1VSLL;4510;Verschluss links;Derzeit keine;S
+ZUBCDVEC-1VSLR;4520;Verschluss rechts;Derzeit keine;S
+ZUBCDVEC-1VSFA;4530;Verschlussfachabdeckung;WE_VSFA / WE_VSFA;S
+ZUBCDVED-1;4540;Verschlussebene D N;WE_VERSCHLUESSE / WE_Verschlüsse;S
+ZUBCDVED-1VSLL;4550;Verschluss links;Derzeit keine;S
+ZUBCDVED-1VSLR;4560;Verschluss rechts;Derzeit keine;S
+ZUBCDVED-1VSFA;4570;Verschlussfachabdeckung;WE_VSFA / WE_VSFA;S
+ZUBCDRI--1;4580;Mech.Riegel .......;Derzeit keine;S
+ZUBCDRHS-1;4590;Riegelhandschloss;WE_RHS / WE_Riegelhandschloss;S
+ZUBCDHV-01;4600;Fest angebauter Handverschluss N;Derzeit keine;S
+HZBAB;4700;Herzstückbereich AB;Derzeit keine;O
+HZBABHZ---;4710;Herzstück im AB Bereich;WE_HZ / WE_Herzstück;O
+HZBABRLL--;4720;Radlenker links;WE_RL / WE_Radlenker;O
+HZBABRLL--ISO1;4730;Radlenker links Iso;OISO / Isolierstoß;O
+HZBABRLMA-;4740;Radlenker Mittelspitze A;WE_RL / WE_Radlenker;O
+HZBABRLMA-ISO1;4750;Radlenker Mittelspitze A Iso;OISO / Isolierstoß;O
+HZBABRLMB-;4760;Radlenker Mittelspitze B;WE_RL / WE_Radlenker;O
+HZBABRLMB-ISO1;4770;Radlenker Mittelspitze B Iso;OISO / Isolierstoß;O
+HZBABRLR--;4780;Radlenker rechts;WE_RL / WE_Radlenker;O
+HZBABRLR--ISO1;4790;Radlenker rechts Iso;OISO / Isolierstoß;O
+HZBABRLSA-;4800;Radlenker Seitenspitze A;WE_RL / WE_Radlenker;O
+HZBABRLSA-ISO1;4810;Radlenker Seitenspitze A Iso;OISO / Isolierstoß;O
+HZBABRLSB-;4820;Radlenker Seitenspitze B;WE_RL / WE_Radlenker;O
+HZBABRLSB-ISO1;4830;Radlenker Seitenspitze B Iso;OISO / Isolierstoß;O
+HZBCD;4900;Herzstückbereich CD;Derzeit keine;O
+HZBCDHZ---;4910;Herzstück im CD Bereich;WE_HZ / WE_Herzstück;O
+HZBCDRLL--;4920;Radlenker links;WE_RL / WE_Radlenker;O
+HZBCDRLL--ISO1;4930;Radlenker links Iso;OISO / Isolierstoß;O
+HZBCDRLMC-;4940;Radlenker Mittelspitze C;WE_RL / WE_Radlenker;O
+HZBCDRLMC-ISO1;4950;Radlenker Mittelspitze C Iso;OISO / Isolierstoß;O
+HZBCDRLMD-;4960;Radlenker Mittelspitze D;WE_RL / WE_Radlenker;O
+HZBCDRLMD-ISO1;4970;Radlenker Mittelspitze D Iso;OISO / Isolierstoß;O
+HZBCDRLR--;4980;Radlenker rechts;WE_RL / WE_Radlenker;O
+HZBCDRLR--ISO1;4990;Radlenker rechts Iso;OISO / Isolierstoß;O
+HZBCDRLSC-;5000;Radlenker Seitenspitze C;WE_RL / WE_Radlenker;O
+HZBCDRLSC-ISO1;5010;Radlenker Seitenspitze C Iso;OISO / Isolierstoß;O
+HZBCDRLSD-;5020;Radlenker Seitenspitze D;WE_RL / WE_Radlenker;O
+HZBCDRLSD-ISO1;5030;Radlenker Seitenspitze D Iso;OISO / Isolierstoß;O
+HZBDH;5100;Herzstückbereich Doppelherzstück;Derzeit keine;O
+HZBDHHZAD-;5110;Herzstück AD;WE_HZ / WE_Herzstück;O
+HZBDHWAAB1;5120;Antrieb AB Doppelherzstück;DIAGNOSE_WK / Diagnose_WK, WE_ANTRIEB / WE_Antrieb, UMW_ANLAGE / Umweltrelevante Anlage;S
+HZBDHWAAB1UEG-;5130;Übertragungsgestänge N;Derzeit keine;S
+HZBDHVEAB1;5140;Verschlussebene AB;WE_VERSCHLUESSE / WE_Verschlüsse;S
+HZBDHVEAB1VSLL;5150;Verschluss links;Derzeit keine;S
+HZBDHVEAB1VSLR;5160;Verschluss rechts;Derzeit keine;S
+HZBDHVEAB1VSFA;5170;Verschlussfachabdeckung;WE_VSFA / WE_VSFA;S
+HZBDHRIA-1;5180;Mech.Riegel .......;Derzeit keine;S
+HZBDHHVA01;5180;Fest angebauter Handverschluss N;Derzeit keine;S
+HZBDHZRA01;5200;Zungenrollvorrichtungspaar AD N;WE_ZUNGENROLLVORRI / WE_Zungenrollvorrichtung;S
+HZBDHZPA01;5210;Zungenprüfkontakt N;WE_ZUNGENPRÜFER / WE_Zungenprüfer;S
+HZBDHZPA01VSFA;5220;Zungenprüfkontaktfachabdeckung;WE_VSFA / WE_VSFA;S
+HZBDHZPRA1;5230;mechanischer Zungenprüfer N;WE_ZUNGENPRÜFER / WE_Zungenprüfer;S
+HZBDHRSAA1;5240;Radsensor f. Auffahrortung ....;WE_RADSENSOR / WE_RADSENSOR;S
+HZBDHFSAD-;5250;Fahrschiene AD;WE_SI / WE_Weichenschienen;O
+HZBDHFSAD-ISO1;5260;Fahrschiene AD Iso;OISO / Isolierstoß;O
+HZBDHZSMAL;5270;Zwischenschiene MfH/Fahrsch.A li.;WE_SI / WE_Weichenschienen;O
+HZBDHZSMALISO1;5280;Zwi-schiene MfH/Fahrsch.A li. Iso;OISO / Isolierstoß;O
+HZBDHZSMAR;5290;Zwischenschiene MfH/Fahrsch.A re.;WE_SI / WE_Weichenschienen;O
+HZBDHZSMARISO1;5300;Zwi-schiene MfH/Fahrsch.A re. Iso;OISO / Isolierstoß;O
+HZBDHZSMDL;5310;Zwi-schiene MfH/Fahrsch.A re. Iso;WE_SI / WE_Weichenschienen;O
+HZBDHZSMDLISO1;5320;Zwi-schiene MfH/Fahrsch.D li. Iso;OISO / Isolierstoß;O
+HZBDHZSMDR;5330;Zwischenschiene MfH/Fahrsch.D re.;WE_SI / WE_Weichenschienen;O
+HZBDHZSMDRISO1;5340;Zwi-schiene MfH/Fahrsch.D re. Iso;OISO / Isolierstoß;O
+HZBDHHZBC-;5400;Herzstück BC;WE_HZ / WE_Herzstück;O
+HZBDHWACD1;5410;Antrieb CD Doppelherzstück;DIAGNOSE_WK / Diagnose_WK, WE_ANTRIEB / WE_Antrieb, UMW_ANLAGE / Umweltrelevante Anlage;S
+HZBDHWACD1UEG-;5420;Übertragungsgestänge N;Derzeit keine;S
+HZBDHVECD1;5430;Verschlussebene CD;WE_VERSCHLUESSE / WE_Verschlüsse;S
+HZBDHVECD1VSLR;5440;Verschluss rechts;Derzeit keine;S
+HZBDHVECD1VSLL;5450;Verschluss links;Derzeit keine;S
+HZBDHVECD1VSFA;5460;Verschlussfachabdeckung;WE_VSFA / WE_VSFA;S
+HZBDHFSBC-;5470;Fahrschiene BC;WE_SI / WE_Weichenschienen;O
+HZBDHFSBC-ISO1;5480;Fahrschiene BC Iso;OISO / Isolierstoß;O
+HZBDHZSMBL;5490;Zwischenschiene MfH/Fahrsch.B li.;WE_SI / WE_Weichenschienen;O
+HZBDHZSMBLISO1;5500;Zwi-schiene MfH/Fahrsch.B li. Iso;OISO / Isolierstoß;O
+HZBDHZSMBR;5510;Zwischenschiene MfH/Fahrsch.B re.;WE_SI / WE_Weichenschienen;O
+HZBDHZSMBRISO1;5520;Zwi-schiene MfH/Fahrsch.B re. Iso;OISO / Isolierstoß;O
+HZBDHZSMCL;5530;Zwischenschiene MfH/Fahrsch.C li.;WE_SI / WE_Weichenschienen;O
+HZBDHZSMCLISO1;5540;Zwi-schiene MfH/Fahrsch.C li. Iso;OISO / Isolierstoß;O
+HZBDHZSMCR;5550;Zwischenschiene MfH/Fahrsch.C re.;WE_SI / WE_Weichenschienen;O
+HZBDHZSMCRISO1;5560;Zwi-schiene MfH/Fahrsch.C re. Iso;OISO / Isolierstoß;O
+HZBDHMSDH-;5570;Mittelschiene (ab R 500);WE_SI / WE_Weichenschienen;O
+HZBDHMSDH-ISO1;5580;Mittelschiene (ab R 500) Iso;OISO / Isolierstoß;O
+HZBDHRIB-1;5590;Mech.Riegel .......;Derzeit keine;S
+HZBDHHVB01;5600;Fest angebauter Handverschluss N;Derzeit keine;S
+HZBDHZRB01;5610;Zungenrollvorrichtungspaar BC N;WE_ZUNGENROLLVORRI / WE_Zungenrollvorrichtung;S
+HZBDHZPB01;5620;Zungenprüfkontakt N;WE_ZUNGENPRÜFER / WE_Zungenprüfer;S
+HZBDHZPB01VSFA;5630;Zungenprüfkontaktfachabdeckung;WE_VSFA / WE_VSFA;S
+HZBDHZPRB1;5640;mechanischer Zungenprüfer N;WE_ZUNGENPRÜFER / WE_Zungenprüfer;S
+HZBDHRSAB1;5650;Radsensor f. Auffahrortung ....;WE_RADSENSOR / WE_RADSENSOR;S
+SW---;6000;Schwellen;WE_SW / WE-Weichenschwellen;O
+EV---;6010;Erdung/Vermaschung allgemein;AEV / Allgemein Erdung / Vermaschung;E10
+SIWES;6020;Dez. Weichensteuerung SIWES;WE_SIWES / WE_SIWES;S
+WSIG1;6030;Weichensignal (Wn-Signal);S_BEFRISTUNG / Befristung, WE_SIGNAL / WE_Signal;S
+WSIG1LP001;6040;Weichensignal Lichtpunkt;WE_SIGNAL / WE_Signal , S_BEFRISTUNG / Befristung;S
+WUE-1;6050;Weichenüberwachungseinr.;Derzeit keine;S
+EEH01;6060;EW... Elektrische Heizstäbe;EEAEH / EA Elektrische Heizstäbe;E20
+GHE01;6070;GTW.. Geothermische Heizeinricht.;;E30
+ODH01;6080;Dampfheizungsrohre;;O
+OUH--;6090;Umlaufheizungsrohre;;O
+SOELH;6100;Oelumlaufheizung;;S
+SPH01;6110;Propan Heizungsgestänge;;S

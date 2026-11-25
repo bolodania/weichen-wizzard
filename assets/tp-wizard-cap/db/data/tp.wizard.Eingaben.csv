@@ -1,0 +1,42 @@
+ID;pos;bereich;frage;typ;werte;sichtbarWenn;formel;vorgabe;hauptquelle;fuerTpNoetig;beleg
+grundbauform;1;Grunddaten;Welche Grundbauform hat die Weiche?;Auswahl;"EWR;EWL";;;;Dokument;true;FK Z4
+radius;2;Grunddaten;Welchen Radius hat die Weiche?;Zahl;;;;;Dokument;false;FK Z5
+rueckbaustatus;3;Grunddaten;Rückbaustatus;Auswahl;"0;1;2;3;4;5;6;7;9";;;0;Vorgabe;false;"FK Z6; Rückbau ist nicht im Hackathon-Scope"
+stw_bauform;4;Grunddaten;Stellwerksbauform;Text;;;;;Stammdaten;false;"FK Z7; nur Hinweis für Isolierstöße"
+zgv_ve;5;Zungenvorrichtung;Wie viele Verschlussebenen hat die Zungenvorrichtung?;Menge;;;;;Dokument;true;FK Z11
+zgv_vsfa;6;Zungenvorrichtung;Haben die Verschlussebenen eine Verschlussfachabdeckung?;JaNein;;zgv_ve GE 1;;;Dokument;true;FK Z14
+zgv_fwip;7;Zungenvorrichtung;Ist eine Federwippe vorhanden?;JaNein;;;;Nein;Vorgabe;true;FK Z15
+zgv_rhs;8;Zungenvorrichtung;Ist ein Riegelhandschloss vorhanden?;JaNein;;;;Nein;Vorgabe;true;FK Z16
+zgv_ri;9;Zungenvorrichtung;Ist ein mechanischer Riegel vorhanden?;JaNein;;;;Nein;Vorgabe;true;FK Z17
+zgv_zp;10;Zungenvorrichtung;Wie viele Zungenprüfkontakte gibt es?;Menge;;;;;Dokument;true;FK Z18
+zgv_zp_vsfa;11;Zungenvorrichtung;Haben die Zungenprüfkontakte eine Fachabdeckung?;JaNein;;zgv_zp GE 1;;;Dokument;true;FK Z19
+zgv_zpr;12;Zungenvorrichtung;Wie viele mechanische Zungenprüfer gibt es?;Menge;;;;0;Vorgabe;true;FK Z20
+zgv_zr;13;Zungenvorrichtung;Wie viele Zungenrollvorrichtungspaare gibt es?;Menge;;;;;Dokument;true;FK Z21
+zgv_hv;14;Zungenvorrichtung;Wie viele fest angebaute Handverschlüsse gibt es?;Menge;;;;0;Vorgabe;true;FK Z22
+zgv_dv;15;Zungenvorrichtung;Wie viele Dauerverschlüsse gibt es?;Menge;;;;0;Vorgabe;true;FK Z23
+hz_bauart;16;Herzstück;Welche Herzstückbauart hat die Weiche?;Auswahl;"0;1;2;3;4;5;6";;;;Dokument;true;"FK Z26; Werte = O_HERZSTUECKBAUART, Bedeutung je Wert offen"
+hz_beweglich;17;Herzstück;Herzstück beweglich;JaNein;;;"hz_bauart BT 1;2";;Regel;true;Migrationsregeln 00012–00031
+hz_nh;18;Herzstück;Wie viele bewegliche Niederhalter gibt es?;Menge;;hz_beweglich EQ Ja;;0;Vorgabe;true;FK Z27
+hz_ve;19;Herzstück;Wie viele Verschlussebenen hat das Herzstück?;Menge;;hz_beweglich EQ Ja;;;Dokument;true;FK Z28
+hz_vsfa;20;Herzstück;Haben die Hz-Verschlussebenen eine Verschlussfachabdeckung?;JaNein;;hz_beweglich EQ Ja UND hz_ve GE 1;;;Dokument;true;"FK Z31; Beispiel NRB_W806 hat sie nur an Ebene 1 und 2 (Klärung)"
+hz_zr;21;Herzstück;Wie viele Herzstückrollvorrichtungspaare gibt es?;Menge;;"hz_bauart IN 1;2;4";;;Dokument;true;FK Z32
+hz_hv;22;Herzstück;Wie viele fest angebaute Handverschlüsse am Herzstück gibt es?;Menge;;hz_beweglich EQ Ja;;0;Vorgabe;true;FK Z33
+rsa;23;Radlenker;Wie viele Radsensoren für die Auffahrortung gibt es?;Menge;;hz_beweglich EQ Ja;;0;Vorgabe;true;"FK Z36; Beispiel NRB_W806: Anzahl 2, aber nur ein TP (Klärung)"
+antrieb_art;24;Antrieb;Welche Art von Antrieb hat die Weiche?;Auswahl;"elektromechanisch;hydraulisch";;;elektromechanisch;Vorgabe;true;FK Z37
+hydraulisch;25;Antrieb;Antrieb hydraulisch;JaNein;;;antrieb_art EQ hydraulisch;;Regel;true;FK Z43–Z48
+zgv_wa;26;Antrieb;Wie viele Antriebe hat die Zungenvorrichtung?;Menge;;;;;Dokument;true;FK Z38
+zgv_ueg;27;Antrieb;Übertragungsgestänge Zungenvorrichtung;JaNein;;;zgv_wa GE 1 UND zgv_ve GT @zgv_wa;;Regel;true;"Migrationsregel 00097 (Operator SO); FK Z39"
+zgv_prss;28;Antrieb;Ist ein abschließbarer Prüferschieber vorhanden?;JaNein;;zgv_wa GE 1;;;Dokument;true;FK Z40
+hz_wa;29;Antrieb;Wie viele Antriebe hat das Herzstück?;Menge;;hz_beweglich EQ Ja;;;Dokument;true;FK Z41
+hz_ueg;30;Antrieb;Übertragungsgestänge Herzstück;JaNein;;;hz_beweglich EQ Ja UND hz_wa GE 1 UND hz_ve GT @hz_wa;;Regel;true;"Migrationsregel 00031 (Operator SO); FK Z42"
+wsig;31;Weichensignal;Wie viele Weichensignale gibt es?;Menge;;;;;Dokument;true;FK Z52
+wsig_lp;32;Weichensignal;Wie viele Lichtpunkte hat jedes Weichensignal?;Menge;;wsig GE 1;;0;Vorgabe;true;"FK Z53; Migrationsregeln 00046–00054 zählen anders (Klärung)"
+siwes;33;Weichensteuerung;Ist eine dezentrale Weichensteuerung vorhanden?;JaNein;;;;Nein;Vorgabe;true;FK Z54
+wue;34;Weichenüberwachung;Ist eine Weichenüberwachungseinrichtung vorhanden?;JaNein;;;;;Dokument;true;FK Z55
+gleis_orte;35;Gleisstücke;An welchen Stellen gibt es Gleisstücke?;Einbauorte;"WGWA-;WGESA;WGESB";;;;Mensch;true;FK Z92, Z95, Z98
+pr_orte;36;Prellbock;An welchen Gleisstücken steht ein Prellbock?;Einbauorte;"WGWA-;WGESA;WGESB";;;;Mensch;true;"FK Z83–Z85; setzt Gleisstück voraus (Annahme)"
+pr_sh0;37;Prellbock;An welchen Prellböcken steht ein Sh0-Signal?;Einbauorte;"WGWA-;WGESA;WGESB";;;;Mensch;true;FK Z86–Z88
+pr_sh2;38;Prellbock;An welchen Prellböcken steht ein Sh2-Signal?;Einbauorte;"WGWA-;WGESA;WGESB";;;;Mensch;true;FK Z89–Z91
+hav_orte;39;Hemmschuhauswurfvorrichtung;Wo sind Hemmschuhauswurfvorrichtungen eingebaut?;Einbauorte;"WGWA-SWAL-;WGWA-SWAR-;ZSBA-BSRLL;ZSBA-BSRLR;WGESASWEL-;WGESASWER-;WGESBSWEL-;WGESBSWER-";;;;Mensch;true;FK Z75–Z82
+iso_orte;40;Isolierstöße;Wo sind Isolierstöße eingebaut?;Einbauorte;"WGWA-SWAL-;WGWA-SWAR-;ZUBA-ZGV-L;ZUBA-ZGV-R;ZSBA-BSRLL;ZSBA-ZGHZL;ZSBA-BSRLR;ZSBA-ZGHZR;HZ-ABRLL--;HZ-ABRLR--;WGESASWEL-;WGESASWER-;WGESBSWEL-;WGESBSWER-";;;;Mensch;true;"FK Z61–Z74; Migration: Einbauort nicht ermittelbar (ZR3N2WETPMAN)"
+heizung;41;Weichenheizung;Welche Weichenheizung hat die Weiche?;Auswahl;"keine;EEH;GHE;ODH;OUH;SOELH;SPH";;;;Dokument;true;"FK Z102–Z107; EEH = elektrisch, übrige Codes: Bezeichnung offen"

@@ -1,0 +1,26 @@
+TP;Suffix;Bezeichnung;Positionsnummer;Planergruppe;Regel;im Beispiel
+NI-----WE---2006STR-A;STR-A;Strang A;0020;O;10;Ja
+NI-----WE---2006STR-B;STR-B;Strang B;0030;O;11;Ja
+NI-----WE---2006ZUBA-;ZUBA-;Zungenvorrichtungsbereich A;0300;O;20;Ja
+NI-----WE---2006ZUBA-ZGV-L;ZUBA-ZGV-L;Zungenvorrichtung links;0310;O;21;Ja
+NI-----WE---2006ZUBA-ZGV-R;ZUBA-ZGV-R;Zungenvorrichtung rechts;0330;O;22;Ja
+NI-----WE---2006ZUBA-ZR-01;ZUBA-ZR-01;Zungenrollvorrichtungspaar N;0350;S;33;Ja
+NI-----WE---2006ZUBA-ZR-02;ZUBA-ZR-02;Zungenrollvorrichtungspaar N;0350;S;33;Ja
+NI-----WE---2006ZUBA-ZR-03;ZUBA-ZR-03;Zungenrollvorrichtungspaar N;0350;S;33;Ja
+NI-----WE---2006ZUBA-WA-01;ZUBA-WA-01;Antrieb N;0360;S;40;Ja
+NI-----WE---2006ZUBA-VE-01;ZUBA-VE-01;Verschlussebene N;0420;S;23;Ja
+NI-----WE---2006ZUBA-VE-01VSLL;ZUBA-VE-01VSLL;Verschluss links;0430;S;24;Ja
+NI-----WE---2006ZUBA-VE-01VSLR;ZUBA-VE-01VSLR;Verschluss rechts;0440;S;25;Ja
+NI-----WE---2006ZSBA-;ZSBA-;Zwischenschienenbereich A;1100;O;70;Ja
+NI-----WE---2006ZSBA-BSRLL;ZSBA-BSRLL;Zwischenschiene links Bs-Rl;1110;O;71;Ja
+NI-----WE---2006ZSBA-ZGHZL;ZSBA-ZGHZL;Zwischenschiene links Zg-Hz;1140;O;73;Ja
+NI-----WE---2006ZSBA-BSRLR;ZSBA-BSRLR;Zwischenschiene rechts Bs-Rl;1160;O;72;Ja
+NI-----WE---2006ZSBA-ZGHZR;ZSBA-ZGHZR;Zwischenschiene rechts Zg-Hz;1190;O;74;Ja
+NI-----WE---2006HZ-AB;HZ-AB;Herzstückbereich Strang A/B;1900;O;50;Ja
+NI-----WE---2006HZ-ABHZ---;HZ-ABHZ---;Herzstück A/B;1910;O;51;Nein
+NI-----WE---2006HZ-ABRLL--;HZ-ABRLL--;Radlenker A/B links;1920;O;65;Ja
+NI-----WE---2006HZ-ABRLR--;HZ-ABRLR--;Radlenker A/B rechts;1940;O;66;Ja
+NI-----WE---2006SW---;SW---;Schwellen;6000;O;12;Ja
+NI-----WE---2006EV---;EV---;Erdung/Vermaschung allgemein;6010;E10;90;Ja
+NI-----WE---2006WSIG1;WSIG1;Weichensignal (Wn-Signal);6030;S;80;Ja
+NI-----WE---2006EEH01;EEH01;EW... Elektrische Heizstäbe;6060;E20;91;Ja

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  ShellBar, Button, Card, CardHeader,
+  Button, Card, CardHeader,
   Form, FormGroup, FormItem,
   Input, Select, Option, Label, MessageStrip,
   IllustratedMessage
@@ -11,29 +11,53 @@ import { MessageInput }   from './components/MessageInput.jsx';
 import { TPPreviewSheet } from './components/TPPreviewSheet.jsx';
 import { SubmitSummary }  from './components/SubmitSummary.jsx';
 
+function AppHeader({ title, subtitle }) {
+  return (
+    <div style={{
+      background: 'var(--sapShellColor, #354a5e)',
+      color: 'var(--sapShell_TextColor, #fff)',
+      padding: '0 1rem',
+      height: '2.75rem',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.5rem',
+      flexShrink: 0,
+    }}>
+      <span style={{ fontWeight: 700, fontSize: 'var(--sapFontSize)' }}>{title}</span>
+      {subtitle && (
+        <>
+          <span style={{ opacity: 0.6 }}>·</span>
+          <span style={{ fontSize: 'var(--sapFontSmallSize)', opacity: 0.85 }}>{subtitle}</span>
+        </>
+      )}
+    </div>
+  );
+}
+
 const BASIC_FORMS = [
-  { value: 'EWL', label: 'Einfache Weiche links' },
   { value: 'EWR', label: 'Einfache Weiche rechts' },
-  { value: 'DKW', label: 'Doppelte Kreuzungsweiche' },
-  { value: 'EKW', label: 'Einfache Kreuzungsweiche' },
-  { value: 'IBW', label: 'Innenbogenweiche' },
-  { value: 'DW',  label: 'Dreiwegweiche' },
-  { value: 'ABW', label: 'Außenbogenweiche' },
+  { value: 'EWL', label: 'Einfache Weiche links (kein Regelwerk)' },
+  { value: 'DKW', label: 'Doppelte Kreuzungsweiche (kein Regelwerk)' },
+  { value: 'EKW', label: 'Einfache Kreuzungsweiche (kein Regelwerk)' },
+  { value: 'IBW', label: 'Innenbogenweiche (kein Regelwerk)' },
+  { value: 'DW',  label: 'Dreiwegweiche (kein Regelwerk)' },
+  { value: 'ABW', label: 'Außenbogenweiche (kein Regelwerk)' },
 ];
 
 export default function App() {
-  const { sessionId, messages, tpPreview, status, error, start, sendAnswer, submit } = useAgentSession();
+  const { sessionId, messages, tpPreview, currentQuestion, status, error, start, sendAnswer, submit } = useAgentSession();
   const [ds100, setDs100]         = useState('');
   const [switchNum, setSwitchNum] = useState('');
-  const [basicForm, setBasicForm] = useState('EWL');
+  const [basicForm, setBasicForm] = useState('EWR');
 
   if (status === 'idle' || status === 'error') {
     return (
       <>
-        <ShellBar primaryTitle="TP-Wizard" secondaryTitle="Felderfassung" />
+        <AppHeader title="TP-Wizard" subtitle="Felderfassung — Neue Weiche erfassen" />
+        <div style={{ padding: '1.5rem 1rem' }}>
         <Card
           header={<CardHeader titleText="Neue Weiche erfassen" />}
-          style={{ maxWidth: 480, margin: '2rem auto' }}
+          style={{ maxWidth: 480, margin: '0 auto' }}
         >
           {error && (
             <MessageStrip design="Negative" hideCloseButton style={{ margin: '1rem 1rem 0' }}>
@@ -72,6 +96,7 @@ export default function App() {
             </Button>
           </div>
         </Card>
+        </div>
       </>
     );
   }
@@ -79,13 +104,13 @@ export default function App() {
   if (status === 'submitted') {
     return (
       <>
-        <ShellBar primaryTitle="TP-Wizard" secondaryTitle="Felderfassung" />
+        <AppHeader title="TP-Wizard" subtitle="Felderfassung" />
         <div style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          height: 'calc(100vh - 44px)',
+          height: 'calc(100vh - 2.75rem)',
           padding: '2rem'
         }}>
           <IllustratedMessage
@@ -105,8 +130,8 @@ export default function App() {
 
   return (
     <>
-      <ShellBar primaryTitle={`TP-Wizard — ${ds100 || ''} W${switchNum || ''}`} secondaryTitle="Felderfassung" />
-      <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 44px)' }}>
+      <AppHeader title={`TP-Wizard — ${ds100 || ''} W${switchNum || ''}`} subtitle="Felderfassung" />
+      <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 2.75rem)' }}>
         {error && (
           <MessageStrip design="Negative" hideCloseButton style={{ margin: '0.5rem 1rem 0' }}>
             {error}
@@ -121,7 +146,7 @@ export default function App() {
               submitting={status === 'submitting'}
             />
           : <>
-              <ChatThread messages={messages} awaitingResponse={status === 'loading'} />
+              <ChatThread messages={messages} awaitingResponse={status === 'loading'} currentQuestion={currentQuestion} onChoiceClick={sendAnswer} />
               <TPPreviewSheet tps={tpPreview} />
               <MessageInput onSend={sendAnswer} disabled={status !== 'active'} />
             </>

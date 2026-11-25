@@ -66,6 +66,7 @@ export function useAgentSession() {
   const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages]   = useState([]);
   const [tpPreview, setTpPreview] = useState([]);
+  const [currentQuestion, setCurrentQuestion] = useState(null);
   const [status, setStatus]       = useState('idle');
   const [error, setError]         = useState(null);
   const contextIdRef              = useRef(null);
@@ -99,6 +100,20 @@ export function useAgentSession() {
       const tps = typeof raw === 'string' ? JSON.parse(raw) : raw;
       if (Array.isArray(tps)) setTpPreview(tps);
     } catch (_) { /* non-critical — TP preview updates best-effort */ }
+  }
+
+  // Structured current question (id, answerType, options) so the UI can render
+  // answer buttons from the rule catalog instead of guessing from the agent's prose.
+  async function refreshCurrentQuestion(sid) {
+    if (!sid) { setCurrentQuestion(null); return; }
+    try {
+      const r = await fetch(`${CAP_BASE}/getNextQuestion(sessionId='${sid}')`);
+      if (!r.ok) return;
+      const d = await r.json();
+      const raw = d?.value ?? d;
+      const q = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      setCurrentQuestion(q || null);
+    } catch (_) { /* non-critical — buttons fall back to free input */ }
   }
 
   const start = useCallback(async ({ ds100, switchNumber, basicForm }) => {
@@ -146,6 +161,7 @@ export function useAgentSession() {
       contextIdRef.current = contextId;
       handleAgentReply(agentText);
       await refreshTpPreview(sid);
+      await refreshCurrentQuestion(sid);
       setStatus('active');
     } catch (e) {
       setError(e.message);
@@ -194,8 +210,10 @@ export function useAgentSession() {
         // Guarantee the CAP session is submitted regardless of whether the agent
         // actually called submitSession via MCP — keyword detection is not reliable enough.
         await ensureSubmitted(sessionIdRef.current);
+        setCurrentQuestion(null);
         setStatus('submitted');
       } else {
+        await refreshCurrentQuestion(sessionIdRef.current);
         setStatus('active');
       }
     } catch (e) {
@@ -229,5 +247,5 @@ export function useAgentSession() {
     }
   }, []);
 
-  return { sessionId, messages, tpPreview, status, error, start, sendAnswer, submit, addMsg };
+  return { sessionId, messages, tpPreview, currentQuestion, status, error, start, sendAnswer, submit, addMsg };
 }

@@ -103,9 +103,10 @@ annotate WizardService.SessionAnswers with {
   questionId    @Core.Immutable;
   questionText  @Core.Immutable;
   area          @Core.Immutable;
-  areaName      @Core.Immutable;
-  // Source and original proposal are server-managed
+  // Source, provenance and original proposal are server-managed
   source        @Core.Computed;
+  herkunft      @Core.Computed;
+  beleg         @Core.Computed;
   agentProposal @Core.Computed;
   // Technical FK — hide from all UI forms and tables
   session       @UI.Hidden;
@@ -121,10 +122,11 @@ annotate WizardService.SessionAnswers with @(
   Capabilities.InsertRestrictions: { Insertable: false },
   Capabilities.DeleteRestrictions: { Deletable: false },
   UI.LineItem: [
-    { $Type: 'UI.DataField', Value: area,          Label: 'Nr.'              },
-    { $Type: 'UI.DataField', Value: areaName,      Label: 'Bereich'          },
+    { $Type: 'UI.DataField', Value: area,          Label: 'Bereich'          },
     { $Type: 'UI.DataField', Value: questionText,  Label: 'Frage'            },
     { $Type: 'UI.DataField', Value: answer,        Label: 'Antwort'          },
+    { $Type: 'UI.DataField', Value: herkunft,      Label: 'Herkunft'         },
+    { $Type: 'UI.DataField', Value: beleg,         Label: 'Beleg'            },
     { $Type: 'UI.DataField', Value: source,        Label: 'Quelle'           },
     { $Type: 'UI.DataField', Value: agentProposal, Label: 'Agent-Vorschlag'  }
   ]
@@ -141,11 +143,12 @@ annotate WizardService.DerivedTPs with @(
   Capabilities.UpdateRestrictions: { Updatable:  false },
   Capabilities.DeleteRestrictions: { Deletable:  false },
   UI.LineItem: [
-    { $Type: 'UI.DataField', Value: level,        Label: 'Ebene'           },
+    { $Type: 'UI.DataField', Value: level,         Label: 'Ebene'           },
     { $Type: 'UI.DataField', Value: posNr,         Label: 'Pos.-Nr.'        },
     { $Type: 'UI.DataField', Value: tpKey,         Label: 'TP-Schlüssel'    },
     { $Type: 'UI.DataField', Value: tpLabel,       Label: 'Bezeichnung'     },
-    { $Type: 'UI.DataField', Value: areaName,      Label: 'Bereich'         },
+    { $Type: 'UI.DataField', Value: area,          Label: 'Bereich'         },
+    { $Type: 'UI.DataField', Value: planergruppe,  Label: 'Planergruppe'    },
     { $Type: 'UI.DataField', Value: isAutomatic,   Label: 'Automatisch'     },
     { $Type: 'UI.DataField', Value: parentTpKey,   Label: 'Übergeordnet'    }
   ]
