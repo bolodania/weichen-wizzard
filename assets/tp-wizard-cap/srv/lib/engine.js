@@ -265,4 +265,5 @@ module.exports = {
   parseBedingungen,
   forlaMuster,
   schluessel,
+  wurzelPlatz,
 };

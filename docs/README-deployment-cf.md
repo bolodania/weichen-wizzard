@@ -140,9 +140,17 @@ CAP-Ordner deployen (vorhandenes `app-field/dist` erforderlich). Bei reinen
 Umgebungsänderungen genügt `cf restart tp-wizard-cap`. Approuter und Agent bleiben
 unverändert. `FL_MOCK=true` schaltet zurück auf Simulation.
 
-Freigabe legt jeden abgeleiteten TP an, nur mit `FunctionalLocation` und
-`FunctionalLocationName` (je maximal 40 Zeichen). CSRF und SAP-Cookies bleiben im
-Backend. Bei Teilfehlern `creationResult` prüfen; keine automatischen POST-Retries.
+Freigabe sendet alle abgeleiteten TPs einschließlich Wurzel und Eltern in einem
+OData-V2-`$batch` mit einem atomaren Change Set, nur mit `FunctionalLocation` und
+`FunctionalLocationName` (je maximal 40 Zeichen). ABAP leitet Eltern aus Schlüsseln
+ab und unterstützt die gemeinsame Anlage (kundenseitig bestätigt).
+Der Header lautet `Content-Type: multipart/mixed; boundary=batch`; der Rohtext
+beginnt mit `--batch` und endet mit `--batch--` (CRLF einschließlich letzter Zeile).
+Die innere Change-Set-Grenze ist je Anfrage eindeutig. CSRF und SAP-Cookies bleiben im
+Backend. HTTP 202 allein gilt nicht als Erfolg: innere HTTP-Antworten und Content-IDs
+werden geprüft. Ein Change-Set-Fehler lehnt alle TPs ab; unvollständige oder
+widersprüchliche Antworten gelten insgesamt als ungeklärt. `creationResult` prüfen;
+keine automatischen POST-Retries.
 Unklare Ergebnisse zuerst in SAP abgleichen. Neustarts verlieren PoC-Daten und
 Duplikatsperren; produktiver Betrieb benötigt dauerhafte Persistenz und Recovery.
 

@@ -16,13 +16,18 @@ Die Freigabe-App wartet auf das Ergebnis; andere CAP-Anfragen bleiben nutzbar.
 SAP-Aufrufe laufen außerhalb kurzer DB-Transaktionen. Der Status `approved` sperrt
 weitere Freigaben derselben Session bis zum Ergebnis (`created` oder `failed`).
 Keine automatischen POST-Wiederholungen; bei Abbruch zuerst Ergebnisse in SAP prüfen.
+Alle TPs einschließlich Wurzel und Eltern werden gemeinsam in einem SAP-OData-V2-
+`$batch` mit einem atomaren Change Set angelegt. Die äußere Grenze lautet `batch`
+(`--batch` / `--batch--`); Eltern werden im bestätigten ABAP-Vertrag aus Schlüsseln
+abgeleitet. Ein Change-Set-Fehler lehnt die gesamte Anlage ab. HTTP 202 ohne gültige
+innere Erfolgsantworten ist kein Anlageerfolg; unklare Antworten erfordern SAP-Abgleich.
 
 Die früheren KI-/Dokumentbereiche inklusive PDF-Upload, Analyse und Approver-Chat
 sind entfernt. Die Felderfassung mit Agent und belegten Fertigmeldungswerten bleibt bestehen.
 
 Echte SAP-Anlage ist Standard (`FL_MOCK=false`). `FL_MOCK=true` simuliert sie.
 Konfiguration für echte Anlage siehe
-[Deployment-Anleitung](README-deployment-cf.md). Teilfehler und ungeklärte Ergebnisse
+[Deployment-Anleitung](README-deployment-cf.md). Ablehnungen und ungeklärte Ergebnisse
 stehen in `creationResult`; vor Wiederholung in SAP abgleichen.
 
 PoC-Daten liegen im Speicher und gehen beim Neustart verloren.

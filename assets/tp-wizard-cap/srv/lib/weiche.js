@@ -1,6 +1,6 @@
 'use strict';
 
-const { ableiten, istSichtbar, vervollstaendige, schluessel } = require('./engine');
+const { ableiten, istSichtbar, vervollstaendige, schluessel, wurzelPlatz } = require('./engine');
 
 // ===========================================================================
 // CAP-Glue rund um die reine Engine: Zustand einer Session -> Angaben-Map,
@@ -26,7 +26,7 @@ function angabenMap(session) {
 }
 
 // Ableitung für eine Session -> TPs in DerivedTP-Form + offene Angaben + Hinweise.
-function ableitenTps(katalog, session) {
+function ableitenTps(katalog, session, { includeRoot = false } = {}) {
   const kopf = kopfVon(session);
   const erg = ableiten(katalog, kopf, angabenMap(session));
   const hinweise = [...erg.hinweise];
@@ -35,13 +35,17 @@ function ableitenTps(katalog, session) {
       `Für Grundbauform "${kopf.grundbauform}" liegt noch kein Regelwerk vor — es werden keine TPs abgeleitet.`,
     );
   }
-  const tps = erg.plaetze.map((p) => ({
+  // The UI omits the switch root; SAP approval must create it as well.
+  const plaetze = includeRoot && kopf.grundbauform === 'EWR' && erg.plaetze.length
+    ? [wurzelPlatz(kopf, katalog.regeln.find((r) => r.nr === 1)), ...erg.plaetze] : erg.plaetze;
+  const tps = plaetze.map((p) => ({
     tpKey: p.schluessel,
     posNr: p.positionsnummer,
     tpLabel: p.bezeichnung,
     area: p.bereich,
-    level: p.ebene,
-    parentTpKey: p.elternSuffix && p.elternSuffix !== '' ? schluessel(kopf, p.elternSuffix) : null,
+    level: includeRoot ? (p.suffix === '' ? 0 : p.ebene + 1) : p.ebene,
+    parentTpKey: p.elternSuffix && p.elternSuffix !== '' ? schluessel(kopf, p.elternSuffix)
+      : includeRoot && p.suffix !== '' ? schluessel(kopf, '') : null,
     isAutomatic: p.automatisch,
     planergruppe: p.planergruppe,
     klassen: p.klassen,

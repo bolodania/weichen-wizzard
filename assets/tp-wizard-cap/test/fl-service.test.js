@@ -4,14 +4,18 @@ const http = require('node:http');
 const client = require('@sap-cloud-sdk/http-client');
 const executeHttpRequest = client.executeHttpRequest;
 const { prepare, bulkCreateFunctionalLocations } = require('../srv/fl-service');
+const { serializeBatch } = require('../srv/lib/fl-batch');
+const { batchResponse, batchError } = require('./helpers/fl-batch-response');
 
-describe('Customer OData approval adapter', () => {
+describe('Customer OData batch approval adapter', () => {
   let spy;
   let previous;
   const tps = [
-    { tpKey: 'NI_W2006', tpLabel: 'Weiche', parentTpKey: '', klassen: 'ignored' },
-    { tpKey: 'NI_W2006-ZG', tpLabel: 'Zungenvorrichtung', parentTpKey: 'NI_W2006', planergruppe: 'ignored' },
+    { tpKey: 'NI-----WE----995', tpLabel: 'Weiche', parentTpKey: '', klassen: 'ignored' },
+    { tpKey: 'NI-----WE----995ZUBA-', tpLabel: 'Zungenvorrichtungsbereich A', parentTpKey: 'NI-----WE----995' },
+    { tpKey: 'NI-----WE----995ZUBA-ZGV-L', tpLabel: 'Zungenvorrichtung links', parentTpKey: 'NI-----WE----995ZUBA-' },
   ];
+  const payloads = tps.map((tp) => ({ FunctionalLocation: tp.tpKey, FunctionalLocationName: tp.tpLabel }));
   const csrf = () => ({ status: 200, headers: {
     'X-CSRF-Token': 'csrf-secret', 'set-cookie': ['SESSION=secret; Path=/; HttpOnly', 'sap-usercontext=sap-client=400; Path=/'],
   } });
@@ -31,158 +35,191 @@ describe('Customer OData approval adapter', () => {
     Object.assign(process.env, previous);
   });
 
-  test('reuses destination/JWT and posts only contracted properties after CSRF fetch', async () => {
-    spy.mockResolvedValueOnce(csrf()).mockResolvedValue({ status: 201 });
+  test('one batch with exact boundary, sorted complete hierarchy, CSRF/cookies/JWT and contracted properties', async () => {
+    spy.mockResolvedValueOnce(csrf()).mockResolvedValueOnce(batchResponse(payloads, true));
     const progress = jest.fn();
-    const result = await bulkCreateFunctionalLocations(tps, { headers: { authorization: 'Bearer human-token' } }, progress);
+    const result = await bulkCreateFunctionalLocations([...tps].reverse(), { headers: { authorization: 'Bearer human-token' } }, progress);
     expect(result).toEqual({ created: tps.map((tp) => tp.tpKey), failed: [], mock: false });
-    expect(spy).toHaveBeenCalledTimes(3);
+    expect(spy).toHaveBeenCalledTimes(2);
     expect(spy.mock.calls[0]).toEqual([
       { destinationName: 'TEST_CUSTOMER', jwt: 'human-token' },
       { method: 'GET', url: '/odata/customer/', timeout: 15000,
         headers: { Accept: 'application/json', 'x-csrf-token': 'Fetch' } },
       { fetchCsrfToken: false },
     ]);
-    tps.forEach((tp, i) => {
-      expect(spy.mock.calls[i + 1][0]).toEqual({ destinationName: 'TEST_CUSTOMER', jwt: 'human-token' });
-      expect(spy.mock.calls[i + 1][1]).toMatchObject({ method: 'POST', url: '/odata/customer/FunctionalLocation',
-        maxRedirects: 0, data: { FunctionalLocation: tp.tpKey, FunctionalLocationName: tp.tpLabel },
-        headers: { 'x-csrf-token': 'csrf-secret', cookie: 'SESSION=secret; sap-usercontext=sap-client=400' } });
-    });
-    expect(progress).toHaveBeenCalledTimes(2);
+    const [destination, config, options] = spy.mock.calls[1];
+    expect(destination).toEqual({ destinationName: 'TEST_CUSTOMER', jwt: 'human-token' });
+    expect(config).toMatchObject({ method: 'POST', url: '/odata/customer/$batch', responseType: 'text', maxRedirects: 0,
+      headers: { 'Content-Type': 'multipart/mixed; boundary=batch', Accept: 'multipart/mixed',
+        'x-csrf-token': 'csrf-secret', cookie: 'SESSION=secret; sap-usercontext=sap-client=400' } });
+    expect(options).toEqual({ fetchCsrfToken: false });
+    const boundary = /boundary=(changeset_[^\r]+)/.exec(config.data)[1];
+    const expected = ['--batch', `Content-Type: multipart/mixed; boundary=${boundary}`, ''];
+    payloads.forEach((payload, index) => expected.push(`--${boundary}`, 'Content-Type: application/http',
+      'Content-Transfer-Encoding: binary', `Content-ID: ${index + 1}`, '', 'POST FunctionalLocation HTTP/1.1',
+      'Content-Type: application/json', 'Accept: application/json', '', JSON.stringify(payload)));
+    expected.push(`--${boundary}--`, '--batch--', '');
+    expect(config.data).toBe(expected.join('\r\n'));
+    expect(config.data).not.toMatch(/parentTpKey|klassen|planergruppe/);
+    expect(progress).toHaveBeenCalledTimes(1);
+    expect(progress).toHaveBeenCalledWith(result);
   });
 
-  test('Basic Auth destination works without a user JWT; authInfo token is supported', async () => {
-    spy.mockResolvedValueOnce(csrf()).mockResolvedValue({ status: 204 });
-    await bulkCreateFunctionalLocations(tps);
+  test('distinct change sets keep the same outer batch boundary', () => {
+    const bodies = [serializeBatch('FunctionalLocation', payloads), serializeBatch('FunctionalLocation', payloads)];
+    expect(bodies[0]).not.toBe(bodies[1]);
+    bodies.forEach((body) => {
+      expect(body.startsWith('--batch\r\n')).toBe(true);
+      expect(body.endsWith('--batch--\r\n')).toBe(true);
+    });
+  });
+
+  test.each(['http-id', '204'])('supports %s response form without assuming response order', async (form) => {
+    const response = batchResponse(payloads, true);
+    if (form === 'http-id') {
+      response.data = response.data.replace(/Content-ID: (\d+)\r\n\r\nHTTP\/1.1 201 Created/g,
+        '\r\nHTTP/1.1 201 Created\r\nContent-ID: $1');
+    } else {
+      response.data = response.data.replace(/HTTP\/1.1 201 Created\r\nContent-Type: application\/json\r\n\r\n[^\r]+/g,
+        'HTTP/1.1 204 No Content\r\n\r\n');
+    }
+    spy.mockResolvedValueOnce(csrf()).mockResolvedValueOnce(response);
+    expect((await bulkCreateFunctionalLocations(tps)).created).toEqual(tps.map((tp) => tp.tpKey));
+  });
+
+  test('Basic Auth works without JWT; authInfo JWT is also supported', async () => {
+    spy.mockResolvedValueOnce(csrf()).mockResolvedValueOnce(batchResponse(payloads));
+    expect((await bulkCreateFunctionalLocations(tps)).failed).toEqual([]);
     expect(spy.mock.calls[0][0]).toEqual({ destinationName: 'TEST_CUSTOMER' });
-    spy.mockReset().mockResolvedValueOnce(csrf()).mockResolvedValue({ status: 200, data: {} });
+    spy.mockReset().mockResolvedValueOnce(csrf()).mockResolvedValueOnce(batchResponse(payloads));
     await bulkCreateFunctionalLocations(tps, { user: { authInfo: { getTokenValue: () => 'auth-info-token' } } });
     expect(spy.mock.calls[0][0].jwt).toBe('auth-info-token');
   });
 
-  test('unset FL_MOCK defaults to real creation with CSRF preparation', async () => {
+  test('unset FL_MOCK defaults to real batch creation', async () => {
     delete process.env.FL_MOCK;
-    spy.mockResolvedValueOnce(csrf()).mockResolvedValue({ status: 201 });
-    const result = await bulkCreateFunctionalLocations(tps);
-    expect(result).toEqual({ created: tps.map((tp) => tp.tpKey), failed: [], mock: false });
-    expect(spy.mock.calls.map((call) => call[1].method)).toEqual(['GET', 'POST', 'POST']);
+    spy.mockResolvedValueOnce(csrf()).mockResolvedValueOnce(batchResponse(payloads));
+    expect((await bulkCreateFunctionalLocations(tps)).created).toHaveLength(3);
+    expect(spy.mock.calls.map((call) => call[1].method)).toEqual(['GET', 'POST']);
   });
 
-  test('unset FL_MOCK still requires valid real configuration before SAP access', async () => {
-    delete process.env.FL_MOCK;
-    delete process.env.FL_ENTITY_SET;
-    await expect(bulkCreateFunctionalLocations(tps)).rejects.toMatchObject({ status: 503 });
-    expect(spy).not.toHaveBeenCalled();
-  });
-
-  test.each(['', 'False', 'truee'])('invalid FL_MOCK is rejected (%s)', (flag) => {
+  test.each(['', 'False', 'truee'])('invalid FL_MOCK (%s)', (flag) => {
     process.env.FL_MOCK = flag;
     expect(() => prepare(tps)).toThrow('FL_MOCK');
     expect(spy).not.toHaveBeenCalled();
   });
 
   test.each([
-    ['FL_ENTITY_SET', ''], ['FL_ENTITY_SET', '<CUSTOMER_ENTITY>'],
-    ['FL_ENTITY_SET', 'StationLocation'], ['FL_ENTITY_SET', 'Locations?x=y'],
-    ['VALUE_HELP_DESTINATION', ''], ['VALUE_HELP_SERVICE_PATH', '//wrong'],
-    ['VALUE_HELP_ODATA_VERSION', '4'],
-  ])('invalid %s fails before any SAP access', async (name, value) => {
+    ['FL_ENTITY_SET', ''], ['FL_ENTITY_SET', '<CUSTOMER_ENTITY>'], ['FL_ENTITY_SET', 'StationLocation'],
+    ['FL_ENTITY_SET', 'Locations?x=y'], ['VALUE_HELP_DESTINATION', ''],
+    ['VALUE_HELP_SERVICE_PATH', '//wrong'], ['VALUE_HELP_ODATA_VERSION', '4'],
+  ])('invalid %s fails before SAP access', async (name, value) => {
     process.env[name] = value;
     await expect(bulkCreateFunctionalLocations(tps)).rejects.toMatchObject({ status: 503 });
     expect(spy).not.toHaveBeenCalled();
   });
 
   test.each([
-    ['tpKey', 'X'.repeat(41)], ['tpLabel', 'X'.repeat(41)],
-    ['tpKey', ''], ['tpLabel', ' '], ['tpLabel', null],
-  ])('validates every %s before the first request without truncation', async (name, value) => {
+    ['tpKey', 'X'.repeat(41)], ['tpLabel', 'X'.repeat(41)], ['tpKey', ''], ['tpLabel', ' '], ['tpLabel', null],
+  ])('validates every %s before access without truncation', async (name, value) => {
     await expect(bulkCreateFunctionalLocations([tps[0], { ...tps[1], [name]: value }])).rejects.toMatchObject({ status: 422 });
     expect(spy).not.toHaveBeenCalled();
   });
 
-  test('rejects empty/duplicate jobs and accepts 40-character boundary', () => {
+  test('rejects empty/duplicate jobs, missing parents and cycles; accepts 40 characters', () => {
     expect(() => prepare([])).toThrow('Keine TPs');
     expect(() => prepare([tps[0], tps[0]])).toThrow('Doppelte');
+    expect(() => prepare([tps[1]])).toThrow('Übergeordneter');
+    expect(() => prepare([{ ...tps[0], parentTpKey: tps[1].tpKey }, tps[1]])).toThrow('Zyklische');
+    expect(() => prepare([{ ...tps[0], parentTpKey: tps[0].tpKey }])).toThrow('Zyklische');
     expect(prepare([{ tpKey: 'K'.repeat(40), tpLabel: 'L'.repeat(40) }]).payloads[0].FunctionalLocationName).toHaveLength(40);
   });
 
-  test.each([{}, { 'x-csrf-token': 'Required' }])('missing CSRF token never results in POST (%j)', async (headers) => {
+  test.each([{}, { 'x-csrf-token': 'Required' }])('missing CSRF never sends batch (%j)', async (headers) => {
     spy.mockResolvedValue({ status: 200, headers });
     const result = await bulkCreateFunctionalLocations(tps);
     expect(result.created).toEqual([]);
-    expect(result.failed).toHaveLength(2);
-    expect(result.failed[0].outcome).toBe('not-attempted');
-    expect(spy).toHaveBeenCalledTimes(1);
-  });
-
-  test('CSRF rejection is sanitized and never posts', async () => {
-    spy.mockRejectedValue(new Error('password SECRET'));
-    const result = await bulkCreateFunctionalLocations(tps);
-    expect(JSON.stringify(result)).not.toMatch(/SECRET|password/);
+    expect(result.failed).toHaveLength(3);
     expect(result.failed.every((tp) => tp.outcome === 'not-attempted')).toBe(true);
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
-  test.each([[400, 'rejected'], [403, 'rejected'], [409, 'unknown'], [500, 'unknown'], [undefined, 'unknown']])(
-    'persists per-item failure for HTTP %s without retries', async (status, outcome) => {
-      const error = Object.assign(new Error('SECRET'), { cause: { response: { status, data: { error: { code: 'BACKEND_CODE' } } } } });
-      spy.mockResolvedValueOnce(csrf()).mockResolvedValueOnce({ status: 201 }).mockRejectedValueOnce(error);
-      const progress = [];
-      const result = await bulkCreateFunctionalLocations(tps, {}, (snapshot) => progress.push(JSON.parse(JSON.stringify(snapshot))));
-      expect(result.created).toEqual([tps[0].tpKey]);
-      expect(result.failed[0]).toMatchObject({ tpKey: tps[1].tpKey, outcome });
-      expect(JSON.stringify(result)).not.toContain('SECRET');
-      expect(progress[0].created).toEqual([tps[0].tpKey]);
-      expect(progress[1]).toEqual(result);
-      expect(spy).toHaveBeenCalledTimes(3);
-    },
-  );
-
-  test('continues after an item rejection and does not call it an empty success', async () => {
-    spy.mockResolvedValueOnce(csrf()).mockRejectedValueOnce({ response: { status: 400 } }).mockResolvedValueOnce({ status: 204 });
+  test('CSRF error is sanitized', async () => {
+    spy.mockRejectedValue(new Error('password SECRET'));
     const result = await bulkCreateFunctionalLocations(tps);
-    expect(result.failed).toHaveLength(1);
-    expect(result.created).toEqual([tps[1].tpKey]);
+    expect(JSON.stringify(result)).not.toMatch(/SECRET|password/);
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 
-  test.each([{ status: 202 }, { status: 201, data: { d: { FunctionalLocation: 'WRONG' } } }])(
-    'unexpected create response is uncertain, not success (%j)', async (response) => {
-      spy.mockResolvedValueOnce(csrf()).mockResolvedValueOnce(response);
-      const result = await bulkCreateFunctionalLocations([tps[0]]);
+  test.each([false, true])('atomic inner rejection marks every TP rejected (nested=%s)', async (nested) => {
+    spy.mockResolvedValueOnce(csrf()).mockResolvedValueOnce(batchError(400, nested));
+    const result = await bulkCreateFunctionalLocations(tps);
+    expect(result.created).toEqual([]);
+    expect(result.failed).toHaveLength(3);
+    expect(result.failed.every((tp) => tp.outcome === 'rejected')).toBe(true);
+    expect(JSON.stringify(result)).not.toContain('SECRET');
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  test.each([[400, 'rejected'], [403, 'rejected'], [409, 'unknown'], [500, 'unknown'], [undefined, 'unknown']])(
+    'outer/transport HTTP %s never retries and marks all %s', async (status, outcome) => {
+      spy.mockResolvedValueOnce(csrf()).mockRejectedValueOnce({ cause: { response: { status } } });
+      const result = await bulkCreateFunctionalLocations(tps);
       expect(result.created).toEqual([]);
-      expect(result.failed[0].outcome).toBe('unknown');
+      expect(result.failed).toHaveLength(3);
+      expect(result.failed.every((tp) => tp.outcome === outcome)).toBe(true);
+      expect(spy).toHaveBeenCalledTimes(2);
     },
   );
 
-  test('progress persistence failure stops additional writes', async () => {
-    spy.mockResolvedValueOnce(csrf()).mockResolvedValue({ status: 201 });
+  test.each([
+    ['outer 202 only', { status: 202 }],
+    ['wrong returned key', batchResponse([{ ...payloads[0], FunctionalLocation: 'WRONG' }, ...payloads.slice(1)])],
+    ['missing result', batchResponse(payloads.slice(0, 2))],
+    ['missing closing boundary', { ...batchResponse(payloads), data: batchResponse(payloads).data.replace('--response_batch--', '') }],
+    ['duplicate ID', { ...batchResponse(payloads), data: batchResponse(payloads).data.replace('Content-ID: 2', 'Content-ID: 1') }],
+    ['missing ID', { ...batchResponse(payloads), data: batchResponse(payloads).data.replace('Content-ID: 2\r\n', '') }],
+    ['mixed success/error', { ...batchResponse(payloads), data: batchResponse(payloads).data.replace('HTTP/1.1 201 Created', 'HTTP/1.1 400 Bad Request') }],
+    ['invalid JSON', { ...batchResponse(payloads), data: batchResponse(payloads).data.replace('{"d":', '{invalid:') }],
+  ])('%s is uncertain for entire change set', async (_name, response) => {
+    spy.mockResolvedValueOnce(csrf()).mockResolvedValueOnce(response);
+    const result = await bulkCreateFunctionalLocations(tps);
+    expect(result.created).toEqual([]);
+    expect(result.failed).toHaveLength(3);
+    expect(result.failed.every((tp) => tp.outcome === 'unknown')).toBe(true);
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  test('persistence failure is not swallowed or retried', async () => {
+    spy.mockResolvedValueOnce(csrf()).mockResolvedValueOnce(batchResponse(payloads));
     await expect(bulkCreateFunctionalLocations(tps, {}, () => { throw new Error('DB unavailable'); })).rejects.toThrow('DB unavailable');
     expect(spy).toHaveBeenCalledTimes(2);
   });
 
-  test('mock mode never accesses SAP, even without real configuration', async () => {
+  test('mock never accesses SAP', async () => {
     process.env.FL_MOCK = 'true';
     delete process.env.FL_ENTITY_SET;
     expect(await bulkCreateFunctionalLocations(tps)).toEqual({ created: tps.map((tp) => tp.tpKey), failed: [], mock: true });
     expect(spy).not.toHaveBeenCalled();
   });
 
-  test('real SDK GET/token/cookies/JSON POST round-trip against local backend', async () => {
+  test('real SDK round-trip sends raw multipart with exact matching batch boundary', async () => {
     const requests = [];
     const server = http.createServer((req, res) => {
       let body = '';
       req.on('data', (chunk) => { body += chunk; });
       req.on('end', () => {
         requests.push({ method: req.method, url: req.url, headers: req.headers, body });
-        res.setHeader('Content-Type', 'application/json');
         if (req.method === 'GET') {
+          res.setHeader('Content-Type', 'application/json');
           res.setHeader('x-csrf-token', 'local-token');
           res.setHeader('set-cookie', ['SESSION=local-cookie; Path=/; HttpOnly']);
           res.end('{}');
         } else {
-          res.statusCode = 201;
-          res.end(JSON.stringify({ d: JSON.parse(body) }));
+          const response = batchResponse(payloads);
+          res.statusCode = response.status;
+          res.setHeader('Content-Type', response.headers['content-type']);
+          res.end(response.data);
         }
       });
     });
@@ -191,16 +228,16 @@ describe('Customer OData approval adapter', () => {
       spy.mockImplementation((_destination, config, options) => executeHttpRequest(
         { url: `http://127.0.0.1:${server.address().port}`, authentication: 'NoAuthentication' }, config, options,
       ));
-      const result = await bulkCreateFunctionalLocations(tps);
-      expect(result.failed).toEqual([]);
-      expect(requests.map((request) => request.method)).toEqual(['GET', 'POST', 'POST']);
-      expect(requests[0].headers['x-csrf-token']).toBe('Fetch');
-      expect(requests[1].url).toBe('/odata/customer/FunctionalLocation');
+      expect((await bulkCreateFunctionalLocations(tps)).failed).toEqual([]);
+      expect(requests.map((request) => request.method)).toEqual(['GET', 'POST']);
+      expect(requests[1].url).toBe('/odata/customer/$batch');
+      expect(requests[1].headers['content-type']).toBe('multipart/mixed; boundary=batch');
       expect(requests[1].headers.cookie).toBe('SESSION=local-cookie');
       expect(requests[1].headers['x-csrf-token']).toBe('local-token');
-      expect(JSON.parse(requests[1].body)).toEqual({ FunctionalLocation: tps[0].tpKey, FunctionalLocationName: tps[0].tpLabel });
-    } finally {
-      await new Promise((resolve) => server.close(resolve));
-    }
+      expect(requests[1].body.startsWith('--batch\r\n')).toBe(true);
+      expect(requests[1].body.endsWith('--batch--\r\n')).toBe(true);
+      expect(requests[1].body.replace(/\r\n/g, '')).not.toContain('\n');
+      payloads.forEach((payload) => expect(requests[1].body).toContain(JSON.stringify(payload)));
+    } finally { await new Promise((resolve) => server.close(resolve)); }
   });
 });

@@ -3,6 +3,7 @@
 const cds = require('@sap/cds');
 const httpClient = require('@sap-cloud-sdk/http-client');
 const { configuration, errorDetails } = require('./lib/location-value-help');
+const { serializeBatch, parseBatchResponse } = require('./lib/fl-batch');
 const LOG = cds.log('fl-service');
 
 function prepare(tps) {
@@ -38,7 +39,25 @@ function prepare(tps) {
     return payload;
   });
   if (!payloads.length) throw Object.assign(new Error('Keine TPs zur Anlage vorhanden'), { status: 422 });
-  return { config, payloads };
+  const byKey = new Map(tps.map((tp, index) => [tp.tpKey, index]));
+  const visited = new Set();
+  const visiting = new Set();
+  const ordered = [];
+  function visit(index) {
+    if (visited.has(index)) return;
+    if (visiting.has(index)) throw Object.assign(new Error('Zyklische TP-Hierarchie'), { status: 422 });
+    visiting.add(index);
+    const parent = tps[index].parentTpKey;
+    if (parent) {
+      if (!byKey.has(parent)) throw Object.assign(new Error('Übergeordneter TP fehlt im Freigabeauftrag'), { status: 422 });
+      visit(byKey.get(parent));
+    }
+    visiting.delete(index);
+    visited.add(index);
+    ordered.push(payloads[index]);
+  }
+  tps.forEach((_tp, index) => visit(index));
+  return { config, payloads: ordered };
 }
 
 async function bulkCreateFunctionalLocations(tps, req = {}, onProgress = async () => {}) {
@@ -71,30 +90,28 @@ async function bulkCreateFunctionalLocations(tps, req = {}, onProgress = async (
     return result;
   }
 
-  for (const payload of payloads) {
-    try {
-      const response = await httpClient.executeHttpRequest(destination, {
-        method: 'POST', url: `${serviceRoot}${config.entitySet}`, data: payload,
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...csrfHeaders },
-        timeout: 15000, maxRedirects: 0,
-      }, { fetchCsrfToken: false });
-      if (![200, 201, 204].includes(response.status)) throw new Error('Unexpected create response');
-      const returnedKey = response.data?.d?.FunctionalLocation ?? response.data?.FunctionalLocation;
-      if (returnedKey !== undefined && returnedKey !== payload.FunctionalLocation) throw new Error('Unexpected create key');
-      result.created.push(payload.FunctionalLocation);
-    } catch (error) {
-      const causes = errorDetails(error);
-      const status = causes.find((cause) => cause.status)?.status;
-      LOG.warn('SAP-TP-Anlage fehlgeschlagen', { causes });
-      // Timeouts/5xx/conflicts can mean SAP already created the object. Never
-      // automatically retry a POST, even when its result is unknown.
-      const outcome = status && status >= 400 && status < 500 && ![408, 409].includes(status) ? 'rejected' : 'unknown';
-      result.failed.push({ tpKey: payload.FunctionalLocation, outcome,
-        error: `SAP-Anlage ${outcome === 'unknown' ? 'ungeklärt; vor Wiederholung in SAP prüfen' : 'abgelehnt'}${status ? ` (HTTP ${status})` : ''}` });
-    }
-    // Outside the HTTP catch: persistence failure must stop further writes.
-    await onProgress(result);
+  let outcome;
+  let status;
+  try {
+    const response = await httpClient.executeHttpRequest(destination, {
+      method: 'POST', url: `${serviceRoot}$batch`, data: serializeBatch(config.entitySet, payloads),
+      headers: { Accept: 'multipart/mixed', 'Content-Type': 'multipart/mixed; boundary=batch',
+        DataServiceVersion: '2.0', ...csrfHeaders },
+      responseType: 'text', timeout: 15000, maxRedirects: 0,
+    }, { fetchCsrfToken: false });
+    ({ outcome, status } = parseBatchResponse(response, payloads));
+  } catch (error) {
+    const causes = errorDetails(error);
+    status = causes.find((cause) => cause.status)?.status;
+    LOG.warn('SAP-Batch-Anlage fehlgeschlagen', { causes });
+    // Transport errors, malformed responses and conflicts are uncertain. No retries.
+    outcome = status && status >= 400 && status < 500 && ![408, 409].includes(status) ? 'rejected' : 'unknown';
   }
+  if (outcome === 'created') result.created = payloads.map((payload) => payload.FunctionalLocation);
+  else result.failed = payloads.map((payload) => ({ tpKey: payload.FunctionalLocation, outcome,
+    error: `SAP-Batch-Anlage ${outcome === 'unknown' ? 'ungeklärt; vor Wiederholung in SAP prüfen' : 'abgelehnt; gesamtes Change Set zurückgerollt'}${status ? ` (HTTP ${status})` : ''}` }));
+  // Outside the HTTP catch: do not misclassify persistence errors as SAP errors.
+  await onProgress(result);
   return result;
 }
 

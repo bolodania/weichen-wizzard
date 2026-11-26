@@ -72,7 +72,7 @@ async function _doApprove(sessionId, req) {
       try { a.answer = validateAnswer(katalog, a.questionId, a.answer); }
       catch (e) { return req.reject(422, e.message); }
     }
-    const { tps, offeneAngaben } = ableitenTps(katalog, session);
+    const { tps, offeneAngaben } = ableitenTps(katalog, session, { includeRoot: true });
     if (offeneAngaben.length) {
       return req.reject({ status: 422, code: 'MISSING_REQUIRED_ANSWERS',
         message: 'Bitte die noch offenen Angaben ergänzen.',
@@ -115,7 +115,8 @@ async function _doApprove(sessionId, req) {
   }
 
   session.status = result.failed.length ? 'failed' : 'created';
-  session.derivedTPCount = tps.length;
+  // Keep the displayed count aligned with the UI list, which omits the root.
+  session.derivedTPCount = tps.length - 1;
   session.creationResult = JSON.stringify(result);
 
   await db.tx(txContext, async (tx) => tx.run(

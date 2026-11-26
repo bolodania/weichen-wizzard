@@ -286,31 +286,45 @@ describe('approveSession', () => {
     expect((await GET(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)`)).data.status).toBe('created');
   });
 
-  test('real adapter posts every derived TP, persists partial results and blocks repeat approval', async () => {
+  test.each(['success', 'rejection'])('real adapter batches complete hierarchy, persists %s and blocks repeat approval', async (outcome) => {
     const sid = await createSession('NI', '4998', 'EWR');
     await completeSession(sid);
     await POST('/wizard/submitSession', { sessionId: sid });
     const client = require('@sap-cloud-sdk/http-client');
     const spy = jest.spyOn(client, 'executeHttpRequest').mockImplementation(async (_destination, config) => {
       if (config.method === 'GET') return { status: 200, headers: { 'x-csrf-token': 'test-csrf' } };
-      if (config.data.FunctionalLocation.endsWith('01')) throw { response: { status: 400 } };
-      return { status: 201, data: { d: config.data } };
+      const { batchResponse, batchError } = require('./helpers/fl-batch-response');
+      expect(config.url).toMatch(/\/\$batch$/);
+      expect(config.headers['Content-Type']).toBe('multipart/mixed; boundary=batch');
+      expect(config.data.startsWith('--batch\r\n')).toBe(true);
+      expect(config.data.endsWith('--batch--\r\n')).toBe(true);
+      const payloads = config.data.split('\r\n').filter((line) => line.startsWith('{')).map((line) => JSON.parse(line));
+      expect(payloads).toHaveLength(26);
+      return outcome === 'success' ? batchResponse(payloads, true) : batchError();
     });
     process.env.FL_MOCK = 'false';
     process.env.FL_ENTITY_SET = 'FunctionalLocation';
     try {
       const response = await POST('/wizard/approveSession', { sessionId: sid });
+      const batch = spy.mock.calls.find((call) => call[1].method === 'POST')[1];
+      expect(batch.url).toMatch(/\/\$batch$/);
+      expect(batch.headers['Content-Type']).toBe('multipart/mixed; boundary=batch');
+      const sent = batch.data.split('\r\n').filter((line) => line.startsWith('{')).map((line) => JSON.parse(line));
+      const rootKey = require('../srv/lib/engine').schluessel({ betriebsstelle: 'NI', weichennummer: '4998' }, '');
+      expect(sent.some((p) => p.FunctionalLocation === rootKey)).toBe(true);
+      expect(sent.some((p) => p.FunctionalLocation === `${rootKey}ZUBA-`)).toBe(true);
       const created = JSON.parse(response.data.created);
       const failed = JSON.parse(response.data.failed);
-      expect(created.length + failed.length).toBe(25);
-      expect(created.length).toBeGreaterThan(0);
-      expect(failed.length).toBeGreaterThan(0);
-      expect(spy).toHaveBeenCalledTimes(26);
+      expect(created.length + failed.length).toBe(26);
+      expect(created.length).toBe(outcome === 'success' ? 26 : 0);
+      expect(failed.length).toBe(outcome === 'success' ? 0 : 26);
+      if (failed.length) expect(failed.every((tp) => tp.outcome === 'rejected')).toBe(true);
+      expect(spy).toHaveBeenCalledTimes(2);
       const row = (await GET(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)`)).data;
-      expect(row.status).toBe('failed');
+      expect(row.status).toBe(outcome === 'success' ? 'created' : 'failed');
       expect(JSON.parse(row.creationResult)).toMatchObject({ created, failed, mock: false });
       await expect(POST('/wizard/approveSession', { sessionId: sid })).rejects.toMatchObject({ response: { status: 409 } });
-      expect(spy).toHaveBeenCalledTimes(26);
+      expect(spy).toHaveBeenCalledTimes(2);
     } finally {
       spy.mockRestore();
       process.env.FL_MOCK = 'true';
@@ -468,7 +482,7 @@ describe('PoC correctness regressions', () => {
     const spy = jest.spyOn(flService, 'bulkCreateFunctionalLocations').mockRejectedValueOnce(new Error('Connection refused'));
     try {
       const result = await POST('/wizard/approveSession', { sessionId: sid });
-      expect(JSON.parse(result.data.failed)).toHaveLength(25);
+      expect(JSON.parse(result.data.failed)).toHaveLength(26);
       expect((await GET(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)`)).data.status).toBe('failed');
       await expect(POST('/wizard/approveSession', { sessionId: sid })).rejects.toMatchObject({ response: { status: 409 } });
     } finally {
@@ -499,7 +513,7 @@ describe('PoC correctness regressions', () => {
     await POST(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=false)/WizardService.draftActivate`, {});
     expect((await GET(active)).data.derivedTPCount).toBe(29);
     const result = await POST(`${active}/WizardService.approve`, {});
-    expect(JSON.parse(result.data.created)).toHaveLength(29);
+    expect(JSON.parse(result.data.created)).toHaveLength(30);
   });
 
 
