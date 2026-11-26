@@ -4,7 +4,7 @@ const path = require('path');
 const vm = require('vm');
 const root = path.join(__dirname, '..');
 
-function harness(states) {
+function harness(states, options = {}) {
   const bindings = [];
   const dialogs = [];
   const buttons = [];
@@ -22,16 +22,23 @@ function harness(states) {
     destroy() {}
   }
   class Dialog extends Control {
-    constructor(settings) { super(settings); dialogs.push(this); }
+    constructor(settings) {
+      super(settings);
+      if (settings.showHeader === false) {
+        busyDialogs.push(this);
+        this.open = jest.fn(() => { if (!options.deferOpen) settings.afterOpen(); });
+        this.destroy = jest.fn();
+        this.close = jest.fn(() => settings.afterClose());
+      } else dialogs.push(this);
+    }
     open() {}
   }
   class Button extends Control {
     constructor(settings) { super(settings); buttons.push(this); }
   }
-  class BusyDialog extends Control {
+  class BusyIndicator extends Control {
     constructor(settings) {
-      super(settings); busyDialogs.push(this);
-      this.open = jest.fn(); this.close = jest.fn(); this.destroy = jest.fn(); this.setText = jest.fn();
+      super(settings); this.setText = jest.fn();
     }
   }
   class Input extends Control {
@@ -59,7 +66,7 @@ function harness(states) {
     getModel: () => model, getBinding: () => ({ refresh }), getPath: () => "/Sessions(sessionId='session',IsActiveEntity=true)" };
   let actions;
   const modules = [Dialog, Button, Control, Control, Input, Select, Control, Control, Control,
-    messageBox, toast, { error: jest.fn() }, ResourceModel, BusyDialog];
+    messageBox, toast, { error: jest.fn() }, ResourceModel, BusyIndicator];
   const sandbox = { sap: { ui: { define: (_deps, factory) => { actions = factory(...modules); } } } };
   vm.runInNewContext(fs.readFileSync(path.join(root, 'app/approve/webapp/ext/ApprovalActions.js'), 'utf8'), sandbox);
   return { actions, context, bindings, dialogs, buttons, busyDialogs, messageBox, toast, refresh };
@@ -88,7 +95,7 @@ test('complete session only approves on explicit click; draft and multi-selectio
   await h.actions.approve(h.context);
   expect(h.bindings.some((b) => b.path.includes('WizardService.approve'))).toBe(true);
   expect(h.dialogs).toHaveLength(0);
-  expect(h.busyDialogs[0].setText).toHaveBeenCalledWith('approvalCreating');
+  expect(h.busyDialogs[0].settings.content[0].settings.items[0].setText).toHaveBeenCalledWith('approvalCreating');
   expect(h.busyDialogs[0].close).toHaveBeenCalled();
   expect(h.busyDialogs[0].destroy).toHaveBeenCalled();
   expect(h.actions.enabled(h.context, [h.context, h.context])).toBe(false);
@@ -131,4 +138,47 @@ test('pending approval shows loading feedback, blocks duplicate clicks, and clea
   expect(h.busyDialogs[0].destroy).toHaveBeenCalled();
   expect(h.messageBox.error).toHaveBeenCalledWith('SAP unavailable');
   expect(h.actions.enabled(h.context)).toBe(true);
+});
+
+test('no preflight or SAP request starts until the loader has actually opened', async () => {
+  const h = harness([{ missingQuestions: [] }], { deferOpen: true });
+  const approval = h.actions.approve(h.context);
+  await Promise.resolve();
+  expect(h.busyDialogs).toHaveLength(1);
+  expect(h.bindings).toHaveLength(0);
+  expect(h.actions.enabled(h.context)).toBe(false);
+  await h.actions.approve(h.context);
+  expect(h.busyDialogs).toHaveLength(1);
+  const popup = h.busyDialogs[0];
+  const escape = { reject: jest.fn() };
+  popup.settings.escapeHandler(escape);
+  expect(escape.reject).toHaveBeenCalled();
+  popup.settings.afterOpen();
+  await approval;
+  expect(h.bindings.some((binding) => binding.path.includes('WizardService.approve'))).toBe(true);
+  expect(popup.close).toHaveBeenCalledTimes(1);
+  expect(popup.destroy).toHaveBeenCalledTimes(1);
+});
+
+test('loader stays visible while failed approval outcome is checked', async () => {
+  const h = harness([{ missingQuestions: [] }]);
+  const original = h.context.getModel().bindContext.getMockImplementation();
+  let entered;
+  let release;
+  const recoveryStarted = new Promise((resolve) => { entered = resolve; });
+  const recovery = new Promise((resolve) => { release = resolve; });
+  let stateCalls = 0;
+  h.context.getModel().bindContext.mockImplementation((path) => {
+    const binding = original(path);
+    if (path.includes('WizardService.approve')) binding.execute.mockRejectedValue(new Error('SAP unavailable'));
+    else if (++stateCalls === 2) binding.requestObject = () => { entered(); return recovery; };
+    return binding;
+  });
+  const approval = h.actions.approve(h.context);
+  await recoveryStarted;
+  expect(h.busyDialogs[0].close).not.toHaveBeenCalled();
+  release({ value: JSON.stringify({ missingQuestions: [] }) });
+  await approval;
+  expect(h.busyDialogs[0].close).toHaveBeenCalledTimes(1);
+  expect(h.messageBox.error).toHaveBeenCalledWith('SAP unavailable');
 });

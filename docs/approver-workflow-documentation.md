@@ -12,6 +12,9 @@
    Erst dieser Klick bei vollständigen Angaben legt TPs an. Technische Clients dürfen nicht freigeben.
 
 Während der Freigabe zeigt ein Ladeindikator die Prüfung bzw. SAP-Anlage an.
+Die Prüfung startet erst nach dem Öffnen des Ladefensters. Es bleibt bis zum
+Ergebnis einschließlich Fehlerabgleich sichtbar und kann nicht per Escape geschlossen
+werden: Das Schließen der Oberfläche würde eine SAP-Anlage nicht sicher abbrechen.
 Die Freigabe-App wartet auf das Ergebnis; andere CAP-Anfragen bleiben nutzbar.
 SAP-Aufrufe laufen außerhalb kurzer DB-Transaktionen. Der Status `approved` sperrt
 weitere Freigaben derselben Session bis zum Ergebnis (`created` oder `failed`).
