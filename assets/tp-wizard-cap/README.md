@@ -75,15 +75,32 @@ npm run build      # CAP + aktuelle app-field bauen (nicht den alten React-Wizar
 - PDF-Textextraktion nutzt optional `pdftotext` (Poppler). Ohne dieses Programm ist
   keine PDF-Extraktion möglich; alternativ UTF-8-Textdateien hochladen. Defekte PDFs
   werden abgewiesen, nicht aus Rohbytes interpretiert. Keine OCR verfügbar.
-- Echter SAP-Zugriff ist nicht Bestandteil dieser Offline-Demo; externe CDS-Modelle
-  und die Payload-/Destination-Anbindung müssen dafür separat vervollständigt werden.
+- Echter SAP-Zugriff wird ausdrücklich mit `FL_MOCK=false` aktiviert; siehe unten.
 
-## Cloud Foundry: XSUAA HTTPS deployment
+## Cloud Foundry: XSUAA und HTTPS
 
-**Deployment has changed:** use the [current CAP + Python + Approuter guide](../../docs/README-deployment-cf.md).
-Run `cf push` from each asset folder; the manifests bind `tp-wizard-xsuaa`. Cloud auth is
-XSUAA, not mocked. Browser access is through Approuter, and no internal routes or
-network policies are required.
+Siehe [Deployment-Anleitung](../../docs/README-deployment-cf.md). Die Manifeste binden
+`tp-wizard-xsuaa`; Browserzugriff erfolgt über den Approuter, ohne interne Routen.
+
+## SAP-Anlage nach manueller Freigabe
+
+`FL_MOCK=true` simuliert die Anlage. Für echte POSTs ausdrücklich `FL_MOCK=false`
+und `FL_ENTITY_SET` setzen. Destination, Service-Pfad und Protokollversion werden
+aus der vorhandenen `VALUE_HELP_*`-Konfiguration übernommen; keine zweite Destination.
+Der bestätigte Vertrag ist OData V2: `tpKey` → `FunctionalLocation`,
+`tpLabel` → `FunctionalLocationName`, jeweils maximal 40 Zeichen, ohne Kürzung.
+Andere Attribute (Eltern, Klassen, Planergruppe) werden nicht übertragen.
+
+Je abgeleitetem TP einschließlich Wurzel erfolgt ein POST nach CSRF-Token-/Cookie-Abruf.
+Nur angemeldete Benutzer können freigeben. Konfiguration und alle Payloads werden
+vor dem ersten SAP-Aufruf geprüft. Ergebnisse je TP stehen in `creationResult`;
+Teilfehler führen zu `failed`. Erneute Freigaben sind gesperrt, POSTs werden nicht
+automatisch wiederholt. `unknown` erfordert Abgleich in SAP, nicht blindes Wiederholen.
+Kein atomarer SAP-Batch: erfolgreiche Teilanlagen bleiben bestehen.
+
+Die PoC-Datenbank bleibt im Speicher; Neustarts verlieren Ergebnisse und Sperren.
+Auch DB-Rollback nach externem POST kann SAP nicht zurückrollen. Vor produktivem
+Einsatz sind dauerhafte Persistenz und ein Recovery-/Abgleichverfahren erforderlich.
 
 ## Tests
 

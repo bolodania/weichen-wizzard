@@ -104,4 +104,4 @@ async function getLocationValues(req) {
   }
 }
 
-module.exports = { getLocationValues, searchFilter, errorDetails };
+module.exports = { configuration, getLocationValues, searchFilter, errorDetails };

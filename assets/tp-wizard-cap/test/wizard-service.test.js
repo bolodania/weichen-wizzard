@@ -188,6 +188,75 @@ describe('editAnswer', () => {
 
 // ── approveSession state machine ──────────────────────────────────────────────
 describe('approveSession', () => {
+  test('real adapter posts every derived TP, persists partial results and blocks repeat approval', async () => {
+    const sid = await createSession('NI', '4998', 'EWR');
+    await completeSession(sid);
+    await POST('/wizard/submitSession', { sessionId: sid });
+    const client = require('@sap-cloud-sdk/http-client');
+    const spy = jest.spyOn(client, 'executeHttpRequest').mockImplementation(async (_destination, config) => {
+      if (config.method === 'GET') return { status: 200, headers: { 'x-csrf-token': 'test-csrf' } };
+      if (config.data.FunctionalLocation.endsWith('01')) throw { response: { status: 400 } };
+      return { status: 201, data: { d: config.data } };
+    });
+    process.env.FL_MOCK = 'false';
+    process.env.FL_ENTITY_SET = 'FunctionalLocation';
+    try {
+      const response = await POST('/wizard/approveSession', { sessionId: sid });
+      const created = JSON.parse(response.data.created);
+      const failed = JSON.parse(response.data.failed);
+      expect(created.length + failed.length).toBe(25);
+      expect(created.length).toBeGreaterThan(0);
+      expect(failed.length).toBeGreaterThan(0);
+      expect(spy).toHaveBeenCalledTimes(26);
+      const row = (await GET(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)`)).data;
+      expect(row.status).toBe('failed');
+      expect(JSON.parse(row.creationResult)).toMatchObject({ created, failed, mock: false });
+      await expect(POST('/wizard/approveSession', { sessionId: sid })).rejects.toMatchObject({ response: { status: 409 } });
+      expect(spy).toHaveBeenCalledTimes(26);
+    } finally {
+      spy.mockRestore();
+      process.env.FL_MOCK = 'true';
+      delete process.env.FL_ENTITY_SET;
+    }
+  });
+
+  test('missing real-write configuration returns 503 and keeps session submitted', async () => {
+    const sid = await createSession('NI', '4999', 'EWR');
+    await completeSession(sid);
+    await POST('/wizard/submitSession', { sessionId: sid });
+    process.env.FL_MOCK = 'false';
+    delete process.env.FL_ENTITY_SET;
+    try {
+      await expect(POST('/wizard/approveSession', { sessionId: sid })).rejects.toMatchObject({ response: { status: 503 } });
+      expect((await GET(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)`)).data.status).toBe('submitted');
+    } finally { process.env.FL_MOCK = 'true'; }
+  });
+
+  test('bound approval validates all contract lengths before SAP access or state change', async () => {
+    const sid = await createSession('NI', '4997', 'EWR');
+    await completeSession(sid);
+    await POST('/wizard/submitSession', { sessionId: sid });
+    const client = require('@sap-cloud-sdk/http-client');
+    const spy = jest.spyOn(client, 'executeHttpRequest');
+    const katalog = await require('../srv/lib/katalog').ladeKatalog();
+    const templates = [...katalog.forla.values()];
+    const previousLabels = templates.map((template) => template.bezeichnung);
+    templates.forEach((template) => { template.bezeichnung = 'X'.repeat(41); });
+    process.env.FL_MOCK = 'false';
+    process.env.FL_ENTITY_SET = 'FunctionalLocation';
+    try {
+      const active = `/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)`;
+      await expect(POST(`${active}/WizardService.approve`, {})).rejects.toMatchObject({ response: { status: 422 } });
+      expect((await GET(active)).data.status).toBe('submitted');
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      templates.forEach((template, i) => { template.bezeichnung = previousLabels[i]; });
+      spy.mockRestore();
+      process.env.FL_MOCK = 'true';
+      delete process.env.FL_ENTITY_SET;
+    }
+  });
+
   test('concurrent approval performs the SAP write once', async () => {
     const sid = await createSession('NI', '995', 'EWR');
     await completeSession(sid);

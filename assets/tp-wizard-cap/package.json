@@ -53,13 +53,6 @@
           "url": ":memory:",
           "journal_mode": "wal"
         }
-      },
-      "S4H_FL": {
-        "kind": "odata-v2",
-        "model": "srv/external/API_FUNCTIONALLOCATION",
-        "credentials": {
-          "destination": "S4H_FL"
-        }
       }
     },
     "server": {

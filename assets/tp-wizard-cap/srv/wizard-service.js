@@ -80,16 +80,26 @@ async function _doApprove(sessionId, req) {
     return req.error(422, `TP-Struktur ungültig: ${validation.warnings.join(', ')}`);
   }
 
-  let result;
+  // Reject configuration/payload errors before claiming or contacting SAP.
+  try { flService.prepare(tps); }
+  catch (error) { return req.reject(error.status || 422, error.message); }
+
+  let result = { created: [], failed: [] };
   const claimed = await db.run(UPDATE('tp.wizard.WizardSession').set({ status: 'approved' })
     .where({ sessionId, status: { in: ['submitted', 'editing'] } }));
   if (!claimed) return req.reject(409, 'Session wird bereits freigegeben');
   session.approvedAt = new Date().toISOString();
   try {
-    result = await flService.bulkCreateFunctionalLocations(tps);
+    result = await flService.bulkCreateFunctionalLocations(tps, req, async (progress) => {
+      result = JSON.parse(JSON.stringify(progress));
+      await db.run(UPDATE('tp.wizard.WizardSession').set({ creationResult: JSON.stringify(result) })
+        .where({ sessionId }));
+    });
   } catch (err) {
-    LOG.error(`[M4.missed]: SAP-Schreibzugriff fehlgeschlagen: ${err.message}`);
-    result = { created: [], failed: tps.map((tp) => ({ tpKey: tp.tpKey, error: err.message })) };
+    LOG.error('SAP-Schreibzugriff unterbrochen', { causes: require('./lib/location-value-help').errorDetails(err) });
+    const recorded = new Set([...result.created, ...result.failed.map((tp) => tp.tpKey)]);
+    result.failed.push(...tps.filter((tp) => !recorded.has(tp.tpKey)).map((tp) => ({ tpKey: tp.tpKey,
+      outcome: 'unknown', error: 'SAP-Anlage unterbrochen; Ergebnis vor Wiederholung in SAP prüfen' })));
   }
 
   session.status = result.failed.length ? 'failed' : 'created';

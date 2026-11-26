@@ -115,6 +115,36 @@ exakte Gleichheit auf `VALUE_HELP_KEY_FIELD`; das Backend muss diesen String-Fil
 unterstützen. Den vollständigen Code einschließlich führender Nullen eingeben.
 Host, Passwort und Location ID bleiben in BTP. Service-Pfad nicht doppelt hinterlegen.
 
+### Echte TP-Anlage aktivieren
+
+Nur nach Prüfung der Kundendestination und des schreibbaren Vertrags aktivieren.
+Für das geprüfte `ZWW_SB_FUNCTIONALLOCA_V2`-Metadata gilt folgende Zuordnung
+(kein Runtime-Standardwert; eine Business-Partner-Konfiguration vorher ersetzen):
+
+```bash
+cf set-env tp-wizard-cap VALUE_HELP_SERVICE_PATH /sap/opu/odata/sap/ZWW_SB_FUNCTIONALLOCA_V2
+cf set-env tp-wizard-cap VALUE_HELP_ENTITY_SET StationLocation
+cf set-env tp-wizard-cap VALUE_HELP_KEY_FIELD StationLocationID
+cf set-env tp-wizard-cap VALUE_HELP_TEXT_FIELD StationLocationName
+cf set-env tp-wizard-cap VALUE_HELP_ODATA_VERSION 2
+cf set-env tp-wizard-cap FL_ENTITY_SET FunctionalLocation
+# Erst setzen, wenn echte Anlagen durch manuelle Freigabe gewünscht sind:
+cf set-env tp-wizard-cap FL_MOCK false
+```
+
+`VALUE_HELP_DESTINATION` muss dieselbe Kundendestination für Lesen und Schreiben
+adressieren. Bei einem anderen Vertrag nicht diese Zuordnung übernehmen.
+Nach Codeänderungen nur CAP mit `cf push tp-wizard-cap --no-manifest` aus dem
+CAP-Ordner deployen (vorhandenes `app-field/dist` erforderlich). Bei reinen
+Umgebungsänderungen genügt `cf restart tp-wizard-cap`. Approuter und Agent bleiben
+unverändert. `FL_MOCK=true` schaltet zurück auf Simulation.
+
+Freigabe legt jeden abgeleiteten TP an, nur mit `FunctionalLocation` und
+`FunctionalLocationName` (je maximal 40 Zeichen). CSRF und SAP-Cookies bleiben im
+Backend. Bei Teilfehlern `creationResult` prüfen; keine automatischen POST-Retries.
+Unklare Ergebnisse zuerst in SAP abgleichen. Neustarts verlieren PoC-Daten und
+Duplikatsperren; produktiver Betrieb benötigt dauerhafte Persistenz und Recovery.
+
 ## 4. XSUAA-Callback und Anmeldung
 
 Redirect-Platzhalter in `xs-security.json` durch die tatsächliche **Approuter-URL
