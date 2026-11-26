@@ -13,10 +13,15 @@ describe('XSUAA HTTPS Cloud Foundry PoC configuration', () => {
     expect(app.services).toEqual(['tp-wizard-xsuaa', 'tp-wizard-destination', 'tp-wizard-connectivity']);
     expect(app['random-route']).toBe(true);
     expect(app.instances).toBe(1);
-    expect(app.env.FL_MOCK).toBe('true');
+    expect(app.env.FL_MOCK).toBe('false');
     expect(app.env.CDS_REQUIRES_AUTH_KIND).toBe('xsuaa');
     expect(app.env).not.toHaveProperty('PORT');
     expect(app.env).not.toHaveProperty('VCAP_SERVICES');
+  });
+
+  test('local environment example defaults to real SAP creation', () => {
+    const example = fs.readFileSync(path.join(root, '.env.example'), 'utf8');
+    expect(example).toMatch(/^FL_MOCK=false$/m);
   });
 
   test('all manifests share XSUAA and use HTTPS without internal policies', () => {

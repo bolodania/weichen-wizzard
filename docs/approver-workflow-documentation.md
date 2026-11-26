@@ -14,7 +14,8 @@
 Die früheren KI-/Dokumentbereiche inklusive PDF-Upload, Analyse und Approver-Chat
 sind entfernt. Die Felderfassung mit Agent und belegten Fertigmeldungswerten bleibt bestehen.
 
-SAP-Anlage wird mit `FL_MOCK=true` simuliert. Für echte Anlage siehe
+Echte SAP-Anlage ist Standard (`FL_MOCK=false`). `FL_MOCK=true` simuliert sie.
+Konfiguration für echte Anlage siehe
 [Deployment-Anleitung](README-deployment-cf.md). Teilfehler und ungeklärte Ergebnisse
 stehen in `creationResult`; vor Wiederholung in SAP abgleichen.
 

@@ -72,7 +72,7 @@ npm run build      # CAP + aktuelle app-field bauen (nicht den alten React-Wizar
   über `localhost`/IPv6 statt des Python-Agenten antworten kann (HTTP 403).
 - Die Einreichung darf offene Angaben zur Prüfung enthalten. **Freigabe** wird dagegen
   bei fehlenden Pflichtangaben oder leerer TP-Struktur mit HTTP 422 abgewiesen.
-- Echter SAP-Zugriff wird ausdrücklich mit `FL_MOCK=false` aktiviert; siehe unten.
+- Echter SAP-Zugriff ist Standard (`FL_MOCK=false`, auch ohne Variable); siehe unten.
 
 ## Cloud Foundry: XSUAA und HTTPS
 
@@ -81,8 +81,9 @@ Siehe [Deployment-Anleitung](../../docs/README-deployment-cf.md). Die Manifeste 
 
 ## SAP-Anlage nach manueller Freigabe
 
-`FL_MOCK=true` simuliert die Anlage. Für echte POSTs ausdrücklich `FL_MOCK=false`
-und `FL_ENTITY_SET` setzen. Destination, Service-Pfad und Protokollversion werden
+Echte SAP-Anlage ist Standard (`FL_MOCK=false`, auch ohne Variable).
+`FL_MOCK=true` simuliert die Anlage. Für echte POSTs muss `FL_ENTITY_SET` gesetzt sein.
+Destination, Service-Pfad und Protokollversion werden
 aus der vorhandenen `VALUE_HELP_*`-Konfiguration übernommen; keine zweite Destination.
 Der bestätigte Vertrag ist OData V2: `tpKey` → `FunctionalLocation`,
 `tpLabel` → `FunctionalLocationName`, jeweils maximal 40 Zeichen, ohne Kürzung.

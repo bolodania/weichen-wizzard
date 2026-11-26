@@ -117,7 +117,8 @@ Host, Passwort und Location ID bleiben in BTP. Service-Pfad nicht doppelt hinter
 
 ### Echte TP-Anlage aktivieren
 
-Nur nach Prüfung der Kundendestination und des schreibbaren Vertrags aktivieren.
+Echte SAP-Anlage ist Standard (`FL_MOCK=false`, auch ohne Variable).
+Vor manueller Freigabe Kundendestination und schreibbaren Vertrag prüfen.
 Für das geprüfte `ZWW_SB_FUNCTIONALLOCA_V2`-Metadata gilt folgende Zuordnung
 (kein Runtime-Standardwert; eine Business-Partner-Konfiguration vorher ersetzen):
 
@@ -128,7 +129,7 @@ cf set-env tp-wizard-cap VALUE_HELP_KEY_FIELD StationLocationID
 cf set-env tp-wizard-cap VALUE_HELP_TEXT_FIELD StationLocationName
 cf set-env tp-wizard-cap VALUE_HELP_ODATA_VERSION 2
 cf set-env tp-wizard-cap FL_ENTITY_SET FunctionalLocation
-# Erst setzen, wenn echte Anlagen durch manuelle Freigabe gewünscht sind:
+# Bestehende Simulation überschreiben; neuer Manifest-Standard ist false:
 cf set-env tp-wizard-cap FL_MOCK false
 ```
 

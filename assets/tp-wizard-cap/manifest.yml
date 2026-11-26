@@ -19,7 +19,7 @@ applications:
       - tp-wizard-connectivity
     env:
       NODE_ENV: production
-      FL_MOCK: "true"
+      FL_MOCK: "false"
       CDS_REQUIRES_AUTH_KIND: xsuaa
       # Destination credentials/host stay in BTP, never in this file.
       # Configure all six VALUE_HELP_* variables and AGENT_URL after push.

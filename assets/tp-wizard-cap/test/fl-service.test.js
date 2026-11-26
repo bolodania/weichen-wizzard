@@ -61,9 +61,23 @@ describe('Customer OData approval adapter', () => {
     expect(spy.mock.calls[0][0].jwt).toBe('auth-info-token');
   });
 
-  test.each([undefined, '', 'False', 'truee'])('real writes require explicit opt-in (%s)', (flag) => {
-    if (flag === undefined) delete process.env.FL_MOCK;
-    else process.env.FL_MOCK = flag;
+  test('unset FL_MOCK defaults to real creation with CSRF preparation', async () => {
+    delete process.env.FL_MOCK;
+    spy.mockResolvedValueOnce(csrf()).mockResolvedValue({ status: 201 });
+    const result = await bulkCreateFunctionalLocations(tps);
+    expect(result).toEqual({ created: tps.map((tp) => tp.tpKey), failed: [], mock: false });
+    expect(spy.mock.calls.map((call) => call[1].method)).toEqual(['GET', 'POST', 'POST']);
+  });
+
+  test('unset FL_MOCK still requires valid real configuration before SAP access', async () => {
+    delete process.env.FL_MOCK;
+    delete process.env.FL_ENTITY_SET;
+    await expect(bulkCreateFunctionalLocations(tps)).rejects.toMatchObject({ status: 503 });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  test.each(['', 'False', 'truee'])('invalid FL_MOCK is rejected (%s)', (flag) => {
+    process.env.FL_MOCK = flag;
     expect(() => prepare(tps)).toThrow('FL_MOCK');
     expect(spy).not.toHaveBeenCalled();
   });

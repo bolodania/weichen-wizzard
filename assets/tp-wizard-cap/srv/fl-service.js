@@ -6,9 +6,10 @@ const { configuration, errorDetails } = require('./lib/location-value-help');
 const LOG = cds.log('fl-service');
 
 function prepare(tps) {
-  if (process.env.FL_MOCK === 'true') return null;
-  if (process.env.FL_MOCK !== 'false') {
-    throw Object.assign(new Error('SAP-Anlage erfordert FL_MOCK=true (Simulation) oder ausdrücklich FL_MOCK=false'), { status: 503 });
+  const mock = process.env.FL_MOCK ?? 'false';
+  if (mock === 'true') return null;
+  if (mock !== 'false') {
+    throw Object.assign(new Error('FL_MOCK muss true (Simulation) oder false (SAP-Anlage, Standard) sein'), { status: 503 });
   }
   let config;
   try {
