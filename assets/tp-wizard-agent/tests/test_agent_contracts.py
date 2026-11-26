@@ -24,15 +24,31 @@ async def test_prompt_loads_existing_instruction(modules):
         cap.wizard_mode.reset(mode)
 
 
-async def test_modes_cannot_submit_and_review_cannot_create(modules):
+async def test_field_can_submit_with_defaults_but_neither_mode_can_approve(modules):
     _, cap = modules
     field = {tool.name for tool in await cap.get_cap_tools('field')}
     review = {tool.name for tool in await cap.get_cap_tools('review')}
     assert 'applyDocumentValues' in field
     assert 'editAnswer' not in field
     assert 'createSession' not in review
+    assert 'bulkSubmitWithDefaults' in field
+    assert 'bulkSubmitWithDefaults' not in review
     for tools in [field, review]:
-        assert not tools & {'submitSession', 'bulkSubmitWithDefaults', 'approveSession'}
+        assert not tools & {'submitSession', 'approveSession'}
+
+
+def test_field_prompt_allows_explicit_default_submission_only(modules):
+    agent, cap = modules
+    mode = cap.wizard_mode.set('field')
+    try:
+        prompt = agent.get_system_prompt()
+        assert 'bulkSubmitWithDefaults' in prompt
+        assert 'release with default values' in prompt
+        assert 'nur nach erfolgreichem Tool-Ergebnis' in prompt
+        assert 'Niemals endgültig freigeben' in prompt
+        assert 'niemals einreichen' not in prompt
+    finally:
+        cap.wizard_mode.reset(mode)
 
 
 async def test_failed_turn_is_not_successful_completion(modules):

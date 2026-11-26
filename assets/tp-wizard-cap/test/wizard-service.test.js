@@ -468,6 +468,14 @@ describe('bulkSubmitWithDefaults', () => {
     expect(body.sessionId).toBe(sid);
     expect(body.defaultedCount).toBeGreaterThan(0);
     expect(body.status).toBe('submitted');
+    const row = (await GET(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)`)).data;
+    expect(row.status).toBe('submitted');
+    expect(row.submittedAt).toBeTruthy();
+    expect(row.creationResult).toBeNull();
+    const pending = parseStringResponse(await GET('/wizard/listPendingSessions()'));
+    expect(pending.some((session) => session.sessionId === sid)).toBe(true);
+    const answers = (await GET(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)/answers`)).data.value;
+    expect(answers.filter((answer) => answer.source === 'agent-default')).toHaveLength(body.defaultedCount);
   });
 
   test('überschreibt bereits bestätigte Antworten nicht', async () => {

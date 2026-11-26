@@ -44,6 +44,24 @@ class CapToolsTests(unittest.IsolatedAsyncioTestCase):
         finally:
             cap.reset_user_token(token)
 
+    async def test_default_submission_calls_existing_cap_action(self):
+        response = Mock()
+        response.text = '{"sessionId":"existing","status":"submitted","defaultedCount":12}'
+        client = AsyncMock()
+        client.post.return_value = response
+        with patch.dict(os.environ, {"CAP_BASE_URL": "https://cap.example"}), \
+             patch.object(cap, "cap_headers", AsyncMock(return_value={"Authorization": "Bearer test"})), \
+             patch.object(cap.httpx, "AsyncClient") as factory:
+            factory.return_value.__aenter__.return_value = client
+            tool = next(t for t in await cap.get_cap_tools('field') if t.name == 'bulkSubmitWithDefaults')
+            result = json.loads(await tool.ainvoke({"sessionId": "existing"}))
+            self.assertEqual(result['status'], 'submitted')
+            self.assertEqual(result['defaultedCount'], 12)
+            client.post.assert_awaited_once_with(
+                'https://cap.example/wizard/bulkSubmitWithDefaults',
+                json={'sessionId': 'existing'}, headers={'Authorization': 'Bearer test'}, timeout=30.0,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

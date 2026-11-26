@@ -1,6 +1,8 @@
 # Freigabe-Workflow
 
-1. Felderfassung über den Approuter unter `/field/` öffnen und die Session einreichen.
+1. Felderfassung unter `/field/` öffnen. Über den Button einreichen oder im Chat
+   ausdrücklich „Mit Standardwerten zur Freigabe einreichen“ anfordern. Der Agent
+   ergänzt fehlende Katalogvorgaben, erhält bestehende Antworten und reicht ein.
 2. Freigabe-App unter `/approve/webapp/index.html` öffnen.
 3. In der Session **Allgemein**, **Antworten** und **TP-Struktur** prüfen.
 4. Antworten bei Bedarf bearbeiten und speichern; die TP-Struktur wird neu berechnet.
@@ -14,3 +16,6 @@ SAP-Anlage wird mit `FL_MOCK=true` simuliert. Für echte Anlage siehe
 stehen in `creationResult`; vor Wiederholung in SAP abgleichen.
 
 PoC-Daten liegen im Speicher und gehen beim Neustart verloren.
+
+Die Chat-Einreichung ist keine SAP-Anlage. Vorgaben bleiben als `agent-default`
+erkennbar; fehlende Angaben ohne Vorgabe müssen vor der endgültigen Freigabe geklärt werden.

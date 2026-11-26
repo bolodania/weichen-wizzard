@@ -4,6 +4,13 @@ DB InfraGO SAP-Hackathon — guided wizard for creating SAP Technical Places (Te
 
 ## Business challenge
 
+### Confirmed workflow refinement
+
+An explicit chat request to release with default values authorizes the Python agent
+to fill missing catalog defaults and submit the existing session for human approval.
+Existing answers are preserved; values without a catalog default remain open.
+This is not final release: only a human reviewer can trigger SAP creation.
+
 Railway switch (Weiche) master data at DB InfraGO suffers from high error rates because field engineers and office clerks lack knowledge of the SAP Technical Place (TP) key systematics of the new WE structure (Forla). An experienced generation of workers who knew both the physical components and the SAP TP keys is leaving; new staff know the railway construction but not the key logic. A guided wizard should replace the error-prone manual entry process by asking plain-language questions and automatically deriving the correct TP hierarchy from a rule engine. An LLM chatbot is a stretch goal.
 
 ## Business Goals & Success Criteria

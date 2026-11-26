@@ -32,6 +32,19 @@
             "field"
           ]
         },
+        "bulkSubmitWithDefaults": {
+          "description": "Nur auf ausdrücklichen Benutzerwunsch wie 'mit Standardwerten zur Freigabe einreichen' oder 'release with default values': ergänzt fehlende Katalogvorgaben, erhält vorhandene Antworten und reicht die bestehende Session zur manuellen Prüfung ein. Keine SAP-Anlage und keine endgültige Freigabe. Nicht bei normaler Antwortbestätigung aufrufen.",
+          "http_endpoint": "/wizard/bulkSubmitWithDefaults",
+          "http_method": "POST",
+          "modes": ["field"],
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "sessionId": { "type": "string", "description": "ID der bestehenden offenen Session" }
+            },
+            "required": ["sessionId"]
+          }
+        },
         "getSmartDefaults": {
           "description": "Katalogvorgaben mit mittlerer Konfidenz: vor dem Speichern Benutzer bestätigen lassen.",
           "http_endpoint": "/wizard/getSmartDefaults(basicForm='{basicForm}')",
