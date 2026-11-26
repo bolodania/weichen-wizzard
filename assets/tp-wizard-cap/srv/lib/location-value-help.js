@@ -77,7 +77,10 @@ async function getLocationValues(req) {
     const response = await httpClient.executeHttpRequest(
       { destinationName: config.destination, ...(jwt ? { jwt } : {}) },
       { method: 'GET', url: `${config.servicePath.replace(/\/$/, '')}/${config.entitySet}`,
-        params, headers: { Accept: 'application/json' }, timeout: 15000 },
+        // SDK v3 leaves custom params unencoded by default. Encode once here so
+        // filter spaces/Unicode are valid HTTP and literal '&' cannot add params.
+        params, parameterEncoder: httpClient.encodeAllParameters,
+        headers: { Accept: 'application/json' }, timeout: 15000 },
     );
     const rows = response.data?.d?.results ?? response.data?.value;
     if (!Array.isArray(rows)) throw new Error('OData-Antwort enthält keine Ergebnisliste');

@@ -2,6 +2,8 @@
 
 const cds = require('@sap/cds');
 const client = require('@sap-cloud-sdk/http-client');
+const http = require('node:http');
+const executeHttpRequest = client.executeHttpRequest;
 const { getLocationValues, errorDetails } = require('../srv/lib/location-value-help');
 
 describe('Destination-backed location value help', () => {
@@ -64,6 +66,41 @@ describe('Destination-backed location value help', () => {
     spy.mockResolvedValue({ data: { d: { results: [] } } });
     await getLocationValues(request('9001'));
     expect(spy.mock.calls[0][1].params.$filter).toBe("Code eq '9001'");
+  });
+
+  test.each([
+    ['2', '9006'], ['4', '9006'],
+    ['2', "009'O"], ['4', 'München & A+B%/#?'],
+    ['2', "X' or Code eq 'Y"], ['4', '東京'],
+  ])('SDK sends safely encoded OData V%s filter for %s over HTTP', async (version, search) => {
+    process.env.VALUE_HELP_ODATA_VERSION = version;
+    let receivedUrl;
+    const server = http.createServer((req, res) => {
+      receivedUrl = req.url;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(version === '2' ? { d: { results: [] } } : { value: [] }));
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      spy.mockImplementation((_destination, config) => executeHttpRequest(
+        { url: `http://127.0.0.1:${server.address().port}`, authentication: 'NoAuthentication' },
+        config,
+        { fetchCsrfToken: false },
+      ));
+      expect(await getLocationValues(request(search, 30))).toEqual({ items: [], hasMore: false });
+      expect(receivedUrl).not.toMatch(/\s|[^\x00-\x7F]/);
+      const url = new URL(receivedUrl, 'http://localhost');
+      expect(url.pathname).toBe('/odata/test-locations/Stations');
+      expect(url.searchParams.get('$filter')).toBe(`Code eq '${search.replace(/'/g, "''")}'`);
+      expect(url.searchParams.get('$select')).toBe('Code,Description');
+      expect(url.searchParams.get('$orderby')).toBe('Code');
+      expect(url.searchParams.get('$top')).toBe('31');
+      expect(url.searchParams.get('$skip')).toBe('30');
+      expect(url.searchParams.get('$format')).toBe(version === '2' ? 'json' : null);
+      expect([...url.searchParams.keys()]).toHaveLength(version === '2' ? 6 : 5);
+    } finally {
+      await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    }
   });
 
   test('exact lookup uses a customer key field, preserves zeros and escapes literals', async () => {
