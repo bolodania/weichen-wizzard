@@ -38,13 +38,6 @@
     ]
   },
   "cds": {
-    "valueHelp": {
-      "servicePath": "/sap/opu/odata/sap/API_BUSINESS_PARTNER",
-      "entitySet": "A_BusinessPartner",
-      "keyField": "BusinessPartner",
-      "textField": "BusinessPartnerFullName",
-      "odataVersion": "2"
-    },
     "requires": {
       "auth": {
         "[production]": {

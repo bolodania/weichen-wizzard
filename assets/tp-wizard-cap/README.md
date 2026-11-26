@@ -94,12 +94,11 @@ erhält nur Code/Bezeichnung, keine Destination-Credentials. Suchtext und Seiten
 serverseitig an OData weitergegeben (30 Einträge pro Seite).
 
 Der Destination-Name hat keinen Standardwert und muss pro Landschaft über
-`VALUE_HELP_DESTINATION` gesetzt werden. Die technische Beispiel-API verwendet
-`/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner` mit den Feldern
-`BusinessPartner` und `BusinessPartnerFullName`. **Business Partner sind keine DS100-
-Betriebsstellen**: dies ist ausschließlich eine technische PoC-Quelle. Vor einer
-fachlichen Demo die Quelle auf echte Betriebsstellen-Codes umstellen; der ausgewählte
-Code wird unverändert als `ds100` verwendet (maximal 10 Zeichen).
+`VALUE_HELP_DESTINATION` gesetzt werden. Service-Pfad, EntitySet und Feldzuordnung
+auf den Betriebsstellen-Service des Kunden konfigurieren. Die Suche verwendet
+exakte Gleichheit auf der konfigurierten String-Code-Eigenschaft; die Bezeichnung
+dient nur der Anzeige. Der ausgewählte Code wird unverändert als `ds100` verwendet
+(maximal 10 Zeichen). Die Filterunterstützung im Zielservice muss geprüft werden.
 
 Konfiguration ohne Codeänderungen, siehe `.env.example`:
 
@@ -113,7 +112,10 @@ Konfiguration ohne Codeänderungen, siehe `.env.example`:
 | `VALUE_HELP_ODATA_VERSION` | `2` oder `4` |
 
 CAP lädt eine lokale `.env`; danach Server neu starten. Alternativ Variablen in der
-Deployment-Umgebung setzen. Standardwerte liegen unter `cds.valueHelp` in `package.json`.
+Deployment-Umgebung setzen. Alle sechs `VALUE_HELP_*`-Variablen sind erforderlich;
+es gibt keine API-Standardwerte oder `cds.valueHelp`-Fallbacks. Platzhalter aus
+`.env.example` ersetzen. Bei fehlender Konfiguration liefert die Auswahl HTTP 503
+mit dem Namen der erforderlichen Variable.
 
 **Voraussetzungen bei PrincipalPropagation:** Für eine `OnPremise`-Destination mit
 `PrincipalPropagation` werden Destination-Service- und Connectivity-Service-Bindings,

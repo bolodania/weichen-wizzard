@@ -3,6 +3,11 @@
 process.env.FL_MOCK = 'true';
 process.env.CDS_IGNORE_DUPLICATE = 'true';
 process.env.VALUE_HELP_DESTINATION = 'TEST_DESTINATION';
+process.env.VALUE_HELP_SERVICE_PATH = '/odata/test-locations';
+process.env.VALUE_HELP_ENTITY_SET = 'Stations';
+process.env.VALUE_HELP_KEY_FIELD = 'Code';
+process.env.VALUE_HELP_TEXT_FIELD = 'Description';
+process.env.VALUE_HELP_ODATA_VERSION = '2';
 // Integration tests must not invoke a developer's live LLM agent on port 5000.
 process.env.AGENT_URL = 'http://127.0.0.1:1';
 
@@ -227,7 +232,7 @@ describe('PoC correctness regressions', () => {
   test('value help endpoint maps destination values without a live backend', async () => {
     const client = require('@sap-cloud-sdk/http-client');
     const spy = jest.spyOn(client, 'executeHttpRequest').mockResolvedValueOnce({
-      data: { d: { results: [{ BusinessPartner: '100', BusinessPartnerFullName: 'Example partner' }] } },
+      data: { d: { results: [{ Code: '100', Description: 'Example partner' }] } },
     });
     try {
       const response = await GET("/wizard/getLocationValues(search='100',skip=0)");

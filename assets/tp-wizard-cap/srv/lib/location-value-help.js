@@ -5,24 +5,50 @@ const httpClient = require('@sap-cloud-sdk/http-client');
 const PAGE_SIZE = 30;
 
 function configuration() {
-  const defaults = cds.env.valueHelp || {};
   const config = {};
   for (const [key, variable] of Object.entries({
     destination: 'VALUE_HELP_DESTINATION', servicePath: 'VALUE_HELP_SERVICE_PATH',
     entitySet: 'VALUE_HELP_ENTITY_SET', keyField: 'VALUE_HELP_KEY_FIELD',
     textField: 'VALUE_HELP_TEXT_FIELD', odataVersion: 'VALUE_HELP_ODATA_VERSION',
-  })) config[key] = process.env[variable] || defaults[key];
-  if (!config.destination || /^(YOUR_|<|\(\()/i.test(config.destination)) {
-    throw new Error('VALUE_HELP_DESTINATION muss den tatsächlichen BTP-Destination-Namen enthalten; Platzhalter sind nicht erlaubt');
+  })) {
+    const value = process.env[variable]?.trim();
+    if (!value || /^(YOUR_|<|\(\()/i.test(value)) {
+      throw new Error(`${variable} muss für den Zielservice konfiguriert sein; leere Werte und Platzhalter sind nicht erlaubt`);
+    }
+    config[key] = value;
   }
   for (const key of ['entitySet', 'keyField', 'textField']) {
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(config[key] || '')) throw new Error(`Ungültige Value-Help-Konfiguration: ${key}`);
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(config[key])) throw new Error(`Ungültige Value-Help-Konfiguration: ${key}`);
   }
   if (!config.destination || !/^\/(?!\/)[A-Za-z0-9_./-]+$/.test(config.servicePath || '') ||
       config.servicePath.includes('..') || !['2', '4'].includes(String(config.odataVersion))) {
     throw new Error('Destination, servicePath oder odataVersion der Value Help ist ungültig');
   }
   return config;
+}
+
+function searchFilter(config, search) {
+  const literal = `'${search.replace(/'/g, "''")}'`;
+  // Exact string equality avoids assuming support for optional filter functions.
+  // The configured customer code property must support equality filtering.
+  return `${config.keyField} eq ${literal}`;
+}
+
+// Cloud SDK may wrap Axios errors several times. Log only allowlisted diagnostic
+// fields, never stack/request/headers/body/token or potentially sensitive messages.
+function errorDetails(error) {
+  const details = [];
+  const seen = new Set();
+  for (let cause = error; cause && !seen.has(cause) && details.length < 6; cause = cause.cause) {
+    seen.add(cause);
+    const rawCode = cause.response?.data?.error?.code || cause.code;
+    details.push({
+      type: /^[A-Za-z]+Error$/.test(cause.name || '') ? cause.name : 'Error',
+      ...(Number.isInteger(cause.response?.status) ? { status: cause.response.status } : {}),
+      ...(typeof rawCode === 'string' && /^[A-Za-z0-9_/.:-]{1,100}$/.test(rawCode) ? { code: rawCode } : {}),
+    });
+  }
+  return details;
 }
 
 async function getLocationValues(req) {
@@ -43,10 +69,7 @@ async function getLocationValues(req) {
   };
   if (String(config.odataVersion) === '2') params.$format = 'json';
   if (search) {
-    const literal = `'${search.replace(/'/g, "''")}'`;
-    params.$filter = [config.keyField, config.textField].map((field) =>
-      String(config.odataVersion) === '2' ? `substringof(${literal},${field})` : `contains(${field},${literal})`
-    ).join(' or ');
+    params.$filter = searchFilter(config, search);
   }
   const authorization = req.headers?.authorization || '';
   const jwt = /^Bearer\s+(.+)$/i.exec(authorization)?.[1] || req.user?.authInfo?.getTokenValue?.();
@@ -65,9 +88,17 @@ async function getLocationValues(req) {
       hasMore: rows.length > PAGE_SIZE || Boolean(response.data?.d?.__next || response.data?.['@odata.nextLink']),
     };
   } catch (error) {
-    cds.log('location-value-help').warn(`Value Help über Destination ${config.destination} fehlgeschlagen (${error.response?.status || 'Verbindung/Konfiguration'})`);
+    const causes = errorDetails(error);
+    const status = causes.find((cause) => cause.status)?.status;
+    cds.log('location-value-help').warn('Value-Help-Aufruf fehlgeschlagen', {
+      destination: config.destination, entitySet: config.entitySet, filtered: Boolean(search),
+      keyField: config.keyField, causes,
+    });
+    if (search && [400, 501].includes(status)) {
+      return req.reject(502, `Backend lehnt den Code-Filter ab (HTTP ${status}). VALUE_HELP_KEY_FIELD muss eine per eq filterbare String-Eigenschaft sein; Zuordnung und Backend-Implementierung prüfen. Diagnose im CAP-Log.`);
+    }
     return req.reject(502, 'Value Help nicht erreichbar. Konfigurierten Destination-Namen, BTP-Service-Bindings, Cloud Connector und API-Berechtigungen prüfen. Details im CAP-Log; Basic Auth benötigt kein Benutzer-JWT.');
   }
 }
 
-module.exports = { getLocationValues };
+module.exports = { getLocationValues, searchFilter, errorDetails };

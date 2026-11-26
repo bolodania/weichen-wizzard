@@ -2,17 +2,17 @@
 
 const cds = require('@sap/cds');
 const client = require('@sap-cloud-sdk/http-client');
-const { getLocationValues } = require('../srv/lib/location-value-help');
+const { getLocationValues, errorDetails } = require('../srv/lib/location-value-help');
 
 describe('Destination-backed location value help', () => {
   let spy;
   beforeEach(() => {
     spy = jest.spyOn(client, 'executeHttpRequest');
-    cds.env.valueHelp = {
-      servicePath: '/sap/opu/odata/sap/API_BUSINESS_PARTNER',
-      entitySet: 'A_BusinessPartner', keyField: 'BusinessPartner', textField: 'BusinessPartnerFullName', odataVersion: '2',
-    };
-    process.env.VALUE_HELP_DESTINATION = 'TEST_DESTINATION';
+    Object.assign(process.env, {
+      VALUE_HELP_DESTINATION: 'TEST_DESTINATION', VALUE_HELP_SERVICE_PATH: '/odata/test-locations',
+      VALUE_HELP_ENTITY_SET: 'Stations', VALUE_HELP_KEY_FIELD: 'Code',
+      VALUE_HELP_TEXT_FIELD: 'Description', VALUE_HELP_ODATA_VERSION: '2',
+    });
   });
   afterEach(() => {
     spy.mockRestore();
@@ -26,16 +26,12 @@ describe('Destination-backed location value help', () => {
   });
 
   test('uses configured example destination, escapes search and propagates JWT', async () => {
-    cds.env.valueHelp = {
-      servicePath: '/sap/opu/odata/sap/API_BUSINESS_PARTNER',
-      entitySet: 'A_BusinessPartner', keyField: 'BusinessPartner', textField: 'BusinessPartnerFullName', odataVersion: '2',
-    };
-    spy.mockResolvedValue({ data: { d: { results: [{ BusinessPartner: '123', BusinessPartnerFullName: 'Example' }] } } });
+    spy.mockResolvedValue({ data: { d: { results: [{ Code: '123', Description: 'Example' }] } } });
     const result = await getLocationValues(request("O'Brien"));
     expect(result).toEqual({ items: [{ code: '123', description: 'Example' }], hasMore: false });
     expect(spy.mock.calls[0][0]).toEqual({ destinationName: 'TEST_DESTINATION', jwt: 'user-token' });
-    expect(spy.mock.calls[0][1].params.$filter).toContain("substringof('O''Brien',BusinessPartner)");
-    expect(spy.mock.calls[0][1].url).toBe('/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner');
+    expect(spy.mock.calls[0][1].params.$filter).toBe("Code eq 'O''Brien'");
+    expect(spy.mock.calls[0][1].url).toBe('/odata/test-locations/Stations');
   });
 
   test('customer configuration supports another destination, fields and OData V4', async () => {
@@ -49,7 +45,7 @@ describe('Destination-backed location value help', () => {
     expect(result.hasMore).toBe(true);
     expect(spy.mock.calls[0][0].destinationName).toBe('CUSTOMER_LOCATIONS');
     expect(spy.mock.calls[0][1]).toMatchObject({
-      url: '/odata/locations/Stations', params: { $skip: 30, $filter: "contains(Code,'NI') or contains(Name,'NI')" },
+      url: '/odata/locations/Stations', params: { $skip: 30, $filter: "Code eq 'NI'" },
     });
   });
 
@@ -58,9 +54,72 @@ describe('Destination-backed location value help', () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
+  test('unfiltered list does not send a filter and empty results are not an error', async () => {
+    spy.mockResolvedValue({ data: { d: { results: [] } } });
+    expect(await getLocationValues(request())).toEqual({ items: [], hasMore: false });
+    expect(spy.mock.calls[0][1].params).not.toHaveProperty('$filter');
+  });
+
+  test('exact code lookup uses the existing key field without filter functions or OR', async () => {
+    spy.mockResolvedValue({ data: { d: { results: [] } } });
+    await getLocationValues(request('9001'));
+    expect(spy.mock.calls[0][1].params.$filter).toBe("Code eq '9001'");
+  });
+
+  test('exact lookup uses a customer key field, preserves zeros and escapes literals', async () => {
+    process.env.VALUE_HELP_KEY_FIELD = 'StationCode';
+    spy.mockResolvedValue({ data: { value: [] } });
+    await getLocationValues(request("009'O"));
+    expect(spy.mock.calls[0][1].params.$filter).toBe("StationCode eq '009''O'");
+  });
+
+  test('invalid key field is rejected before calling SAP', async () => {
+    process.env.VALUE_HELP_KEY_FIELD = 'Code or 1 eq 1';
+    await expect(getLocationValues(request('9001'))).rejects.toMatchObject({ status: 503 });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  test('nested SAP rejection is diagnosed without exposing request data or messages', async () => {
+    const error = Object.assign(new Error('Bearer SECRET'), { cause: Object.assign(new Error('password secret'), {
+      name: 'AxiosError', response: { status: 400, data: { error: { code: '/IWBEP/CM_MGW_RT/020', message: 'sensitive text' } } },
+      config: { headers: { Authorization: 'Bearer SECRET' } },
+    }) });
+    expect(errorDetails(error)[1]).toEqual({ type: 'AxiosError', status: 400, code: '/IWBEP/CM_MGW_RT/020' });
+    expect(JSON.stringify(errorDetails(error))).not.toMatch(/SECRET|password|sensitive/);
+    spy.mockRejectedValue(error);
+    await expect(getLocationValues(request('9001'))).rejects.toThrow('Backend lehnt den Code-Filter ab (HTTP 400)');
+  });
+
   test.each(['', 'YOUR_BASIC_AUTH_DESTINATION', '<destination-name>'])('rejects missing/placeholder destination %s', async (value) => {
     process.env.VALUE_HELP_DESTINATION = value;
     await expect(getLocationValues(request())).rejects.toMatchObject({ status: 503 });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    'VALUE_HELP_DESTINATION', 'VALUE_HELP_SERVICE_PATH', 'VALUE_HELP_ENTITY_SET',
+    'VALUE_HELP_KEY_FIELD', 'VALUE_HELP_TEXT_FIELD', 'VALUE_HELP_ODATA_VERSION',
+  ])('requires %s from environment without CDS defaults', async (variable) => {
+    delete process.env[variable];
+    const previous = cds.env.valueHelp;
+    cds.env.valueHelp = { destination: 'FALLBACK', servicePath: '/fallback', entitySet: 'Fallback',
+      keyField: 'FallbackCode', textField: 'FallbackText', odataVersion: '2' };
+    try {
+      await expect(getLocationValues(request())).rejects.toMatchObject({ status: 503 });
+      await expect(getLocationValues(request())).rejects.toThrow(variable);
+      expect(spy).not.toHaveBeenCalled();
+    } finally { cds.env.valueHelp = previous; }
+  });
+
+  test.each([
+    ['VALUE_HELP_SERVICE_PATH', '<CUSTOMER_SERVICE_PATH>'],
+    ['VALUE_HELP_ENTITY_SET', 'YOUR_ENTITY_SET'],
+    ['VALUE_HELP_KEY_FIELD', '<CUSTOMER_CODE_PROPERTY>'],
+    ['VALUE_HELP_TEXT_FIELD', '<CUSTOMER_DESCRIPTION_PROPERTY>'],
+    ['VALUE_HELP_ODATA_VERSION', '<2_OR_4>'],
+  ])('rejects placeholder in %s', async (variable, value) => {
+    process.env[variable] = value;
+    await expect(getLocationValues(request())).rejects.toThrow(variable);
     expect(spy).not.toHaveBeenCalled();
   });
 

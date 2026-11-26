@@ -52,7 +52,7 @@ export function LocationValueHelp({ value, onSelect }) {
     <Dialog open={open} headerText="Betriebsstelle auswählen" onClose={() => setOpen(false)}
       footer={<Button onClick={() => setOpen(false)}>Schließen</Button>}>
       <div style={{ padding: '1rem', width: 'min(32rem, 80vw)' }}>
-        <Input accessibleName="Code oder Bezeichnung suchen" placeholder="Code oder Bezeichnung suchen"
+        <Input accessibleName="Exakten Code suchen" placeholder="Vollständigen Code eingeben"
           value={search} maxlength={100} style={{ width: '100%' }} onInput={(e) => {
             setSearch(e.target.value); setSkip(0);
           }} />

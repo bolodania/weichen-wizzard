@@ -48,9 +48,8 @@ describe('XSUAA HTTPS Cloud Foundry PoC configuration', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
     expect(app.command).toBe('npm run start:poc');
     expect(pkg.scripts['start:poc']).toBe('cds-serve --in-memory');
-    expect(app.env).not.toHaveProperty('VALUE_HELP_DESTINATION');
-    expect(app.env.VALUE_HELP_SERVICE_PATH).toBe('/sap/opu/odata/sap/API_BUSINESS_PARTNER');
-    expect(app.env.VALUE_HELP_ENTITY_SET).toBe('A_BusinessPartner');
+    expect(Object.keys(app.env).filter((key) => key.startsWith('VALUE_HELP_'))).toEqual([]);
+    expect(pkg.cds).not.toHaveProperty('valueHelp');
   });
 
   test('upload exclusions remove secrets and local dependencies, not built field UI', () => {

@@ -46,8 +46,11 @@ function prepare(directory) {
     if (!bindings.some((binding) => binding.name === 'tp-wizard-xsuaa')) {
       throw new Error(`${name}: existing tp-wizard-xsuaa binding required`);
     }
-    if (asset === 'cap' && (!current.VALUE_HELP_DESTINATION || /^(YOUR_|<)/i.test(current.VALUE_HELP_DESTINATION))) {
-      throw new Error('Configure the actual VALUE_HELP_DESTINATION on CAP first.');
+    if (asset === 'cap') {
+      const required = ['VALUE_HELP_DESTINATION', 'VALUE_HELP_SERVICE_PATH', 'VALUE_HELP_ENTITY_SET',
+        'VALUE_HELP_KEY_FIELD', 'VALUE_HELP_TEXT_FIELD', 'VALUE_HELP_ODATA_VERSION'];
+      const missing = required.filter((key) => !current[key]?.trim() || /^(YOUR_|<|\(\()/i.test(current[key].trim()));
+      if (missing.length) throw new Error(`Configure actual CAP environment values first: ${missing.join(', ')}`);
     }
     if (asset === 'agent' && !['AICORE_PROXY_URL', 'AICORE_DESTINATION_NAME'].some((key) => current[key]) &&
         !['AICORE_CLIENT_ID', 'AICORE_CLIENT_SECRET', 'AICORE_AUTH_URL', 'AICORE_BASE_URL'].every((key) => current[key])) {

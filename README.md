@@ -124,7 +124,7 @@ Referenzfälle: NI/2006 → 25 TPs, NRB/806 → 110 TPs.
 - Dokumente: UTF-8-Text oder PDF mit Poppler. Regel-/Zitatprüfung ist keine OCR
   und keine automatische Dokumentinterpretation.
 - Datensatzberechtigungen, getrennte Browserrollen und echter SAP-Schreibzugriff sind noch nicht vollständig umgesetzt.
-- Business Partner sind eine technische Value-Help-Beispielquelle, keine DS100-Betriebsstellen.
+- Die Value Help muss auf den fachlich passenden Betriebsstellen-Service des Kunden konfiguriert werden.
 
 ## Dokumentation
 

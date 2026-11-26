@@ -70,24 +70,26 @@ Den exakten Namen unter **Subaccount → Connectivity → Destinations** ablesen
 Nicht mit Service-Instanzname oder `cap-backend` verwechseln. Kein kundenspezifischer
 Destination-Name ist vorbelegt. Platzhalter nicht wörtlich übernehmen.
 
-API-Zuordnung auf CAP bei Bedarf mit `cf set-env` ändern:
+Alle sechs `VALUE_HELP_*`-Variablen auf CAP konfigurieren: Destination-Name oben,
+API-Zuordnung unten. Keine API-Standardwerte sind im Code oder Manifest hinterlegt.
+`.env.example` enthält ausschließlich zu ersetzende Platzhalter für lokale Nutzung.
 
-| Variable | Technischer Beispielstandard |
+| Variable | Kundenspezifischer Wert |
 |---|---|
-| `VALUE_HELP_SERVICE_PATH` | `/sap/opu/odata/sap/API_BUSINESS_PARTNER` |
-| `VALUE_HELP_ENTITY_SET` | `A_BusinessPartner` |
-| `VALUE_HELP_KEY_FIELD` | `BusinessPartner` |
-| `VALUE_HELP_TEXT_FIELD` | `BusinessPartnerFullName` |
-| `VALUE_HELP_ODATA_VERSION` | `2` |
+| `VALUE_HELP_SERVICE_PATH` | Relativer Pfad des OData-Service |
+| `VALUE_HELP_ENTITY_SET` | EntitySet der Betriebsstellen |
+| `VALUE_HELP_KEY_FIELD` | String-Eigenschaft mit dem Betriebsstellen-Code |
+| `VALUE_HELP_TEXT_FIELD` | Eigenschaft mit der Bezeichnung |
+| `VALUE_HELP_ODATA_VERSION` | `2` oder `4`, passend zum Service |
 
-So wird die Beispiel-API ausdrücklich konfiguriert (Werte für den Kunden ersetzen):
+Alle Platzhalter durch Werte aus dem OData-Service des Kunden ersetzen:
 
 ```bash
-cf set-env tp-wizard-cap VALUE_HELP_SERVICE_PATH /sap/opu/odata/sap/API_BUSINESS_PARTNER
-cf set-env tp-wizard-cap VALUE_HELP_ENTITY_SET A_BusinessPartner
-cf set-env tp-wizard-cap VALUE_HELP_KEY_FIELD BusinessPartner
-cf set-env tp-wizard-cap VALUE_HELP_TEXT_FIELD BusinessPartnerFullName
-cf set-env tp-wizard-cap VALUE_HELP_ODATA_VERSION 2
+cf set-env tp-wizard-cap VALUE_HELP_SERVICE_PATH "/PFAD/DES/KUNDENSERVICE"
+cf set-env tp-wizard-cap VALUE_HELP_ENTITY_SET "KUNDEN_ENTITYSET"
+cf set-env tp-wizard-cap VALUE_HELP_KEY_FIELD "CODE_EIGENSCHAFT"
+cf set-env tp-wizard-cap VALUE_HELP_TEXT_FIELD "BEZEICHNUNGS_EIGENSCHAFT"
+cf set-env tp-wizard-cap VALUE_HELP_ODATA_VERSION "2" # ggf. 4
 cf restart tp-wizard-cap
 ```
 
@@ -100,14 +102,17 @@ Die Zuordnung aus dem OData-Service des Kunden ableiten:
 4. Protokollversion `2` oder `4` setzen und CAP neu starten.
 5. Über Approuter die Felderfassung öffnen und „Auswählen“ testen.
 
-Beispiel-Ergebnis: `<Destination-URL>/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner`.
+Ergebnis: `<Destination-URL><VALUE_HELP_SERVICE_PATH>/<VALUE_HELP_ENTITY_SET>`.
 `cf set-env` benötigt keinen lokalen Projektordner, aber das richtige CF-Ziel.
 Ein Neustart genügt; kein Build erforderlich. Er verliert jedoch die PoC-Daten im
-Speicher. Das Redeployment-Skript erhält bestehende API-Werte. Bei manuellem
-`cf push` die Beispielwerte im Manifest ebenfalls anpassen, damit sie kundenspezifische
-Einstellungen nicht überschreiben.
+Speicher. Das Redeployment-Skript prüft und erhält bestehende API-Werte. Auch ein
+manuelles `cf push` überschreibt diese Variablen nicht durch Manifest-Standardwerte.
+Bei fehlenden Variablen liefert die Value Help HTTP 503 mit dem Variablennamen;
+Platzhalter sind keine ausführbare Konfiguration.
 
-Business Partner sind keine DS100-Betriebsstellen; für Kundendaten Zuordnung anpassen.
+Der Service muss fachlich passende Betriebsstellen-Codes liefern. Die Suche verwendet
+exakte Gleichheit auf `VALUE_HELP_KEY_FIELD`; das Backend muss diesen String-Filter
+unterstützen. Den vollständigen Code einschließlich führender Nullen eingeben.
 Host, Passwort und Location ID bleiben in BTP. Service-Pfad nicht doppelt hinterlegen.
 
 ## 4. XSUAA-Callback und Anmeldung
