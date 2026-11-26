@@ -19,9 +19,6 @@ cds.on('bootstrap', (app) => {
     app.use((_req, res, next) => {
       const user = cds.context?.user;
       if (!user?.is('authenticated-user')) return res.status(401).json({ error: { message: 'Authentication required' } });
-      if (!['WizardUser', 'CAPTools', 'AgentInvoke'].some((role) => user.is(role))) {
-        return res.status(403).json({ error: { message: 'TP Wizard scope required' } });
-      }
       next();
     });
   }

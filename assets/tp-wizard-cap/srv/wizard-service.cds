@@ -1,7 +1,7 @@
 using { tp.wizard as wizard } from '../db/schema';
 using from '../app/approve/annotations';
 
-service WizardService @(path: '/wizard', requires: ['WizardUser', 'CAPTools']) {
+service WizardService @(path: '/wizard', requires: 'authenticated-user') {
 
   // Read-only reference data (Regelwerk-Katalog)
   @readonly entity Eingaben     as projection on wizard.Eingaben;
@@ -14,7 +14,7 @@ service WizardService @(path: '/wizard', requires: ['WizardUser', 'CAPTools']) {
   @Capabilities.InsertRestrictions.Insertable: false
   entity Sessions as projection on wizard.WizardSession
     actions {
-      @requires: 'WizardUser'
+      @requires: 'authenticated-user'
       action approve() returns {
         sessionId  : String;
         created    : String; // JSON array
@@ -130,7 +130,7 @@ service WizardService @(path: '/wizard', requires: ['WizardUser', 'CAPTools']) {
   };
 
   // Unbound approve — still available for legacy callers
-  @requires: 'WizardUser'
+  @requires: 'authenticated-user'
   action approveSession(
     sessionId    : String
   ) returns {

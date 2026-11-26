@@ -39,6 +39,10 @@ function _computeOpenHints(session) {
 
 // Core approve logic — shared by unbound approveSession and bound Sessions.approve.
 async function _doApprove(sessionId, req) {
+  // Authentication includes client-credentials tokens; approval requires a human.
+  if (!req.user?.is('authenticated-user') || req.user.is('system-user')) {
+    return req.reject(403, 'Freigabe erfordert einen angemeldeten Benutzer, keinen technischen Client');
+  }
   const session = await _getSession(sessionId);
   if (!session) return req.error(404, `Session ${sessionId} nicht gefunden`);
   if (!['submitted', 'editing'].includes(session.status)) {

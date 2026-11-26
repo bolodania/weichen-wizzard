@@ -39,12 +39,9 @@ class XsuaaMiddleware(BaseHTTPMiddleware):
         if not header.lower().startswith("bearer "):
             return JSONResponse({"error": "Authentication required"}, status_code=401)
         try:
-            context = await asyncio.to_thread(xssec.create_security_context, header[7:], self.binding)
+            await asyncio.to_thread(xssec.create_security_context, header[7:], self.binding)
         except Exception:
             return JSONResponse({"error": "Invalid access token"}, status_code=401)
-        prefix = self.binding["xsappname"]
-        if not any(context.check_scope(f"{prefix}.{scope}") for scope in ("AgentInvoke", "WizardUser")):
-            return JSONResponse({"error": "Agent invocation scope required"}, status_code=403)
         return await call_next(request)
 
 

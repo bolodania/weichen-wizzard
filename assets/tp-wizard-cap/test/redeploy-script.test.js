@@ -18,6 +18,8 @@ test('redeploy rejects unknown options and documents safe defaults', () => {
   const source = fs.readFileSync(script, 'utf8');
   expect(source).toContain('set -euo pipefail');
   expect(source).toContain('--no-start');
+  expect(source).toContain('cf restage "tp-wizard-$asset"');
+  expect(source).not.toContain('cf start "tp-wizard-$asset"');
   expect(source).not.toContain('source .env');
   expect(source).not.toContain('cf delete');
   const helper = fs.readFileSync(path.join(root, 'scripts/cf-deployment.js'), 'utf8');

@@ -1,27 +1,7 @@
 {
   "xsappname": "tp-wizard",
   "tenant-mode": "dedicated",
-  "scopes": [
-    { "name": "$XSAPPNAME.WizardUser", "description": "Use the TP Wizard and manually approve sessions" },
-    { "name": "$XSAPPNAME.CAPTools", "description": "Technical CAP tool access, excluding approval" },
-    { "name": "$XSAPPNAME.AgentInvoke", "description": "Technical invocation of the Python agent" }
-  ],
-  "authorities": ["$XSAPPNAME.CAPTools", "$XSAPPNAME.AgentInvoke"],
-  "role-templates": [
-    {
-      "name": "WizardUser",
-      "description": "PoC field capture and reviewer access",
-      "scope-references": ["$XSAPPNAME.WizardUser"]
-    }
-  ],
-  "role-collections": [
-    {
-      "name": "TP Wizard Users",
-      "description": "Users allowed to access the TP Wizard PoC",
-      "role-template-references": ["$XSAPPNAME.WizardUser"]
-    }
-  ],
   "oauth2-configuration": {
-    "redirect-uris": ["https://tp-wizard-router-brash-lion-bh.cfapps.eu10.hana.ondemand.com/login/callback"]
+    "redirect-uris": ["https://YOUR_ACTUAL_ROUTER_ROUTE/login/callback"]
   }
 }

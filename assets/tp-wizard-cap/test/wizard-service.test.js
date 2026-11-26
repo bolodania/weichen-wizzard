@@ -9,8 +9,8 @@ process.env.AGENT_URL = 'http://127.0.0.1:1';
 const cds = require('@sap/cds');
 cds.env.requires.auth = {
   kind: 'mocked', users: {
-    tester: { password: 'test', roles: ['WizardUser'] },
-    tools: { password: 'test', roles: ['CAPTools'] },
+    tester: { password: 'test', roles: [] },
+    tools: { password: 'test', roles: ['system-user'] },
   },
 };
 const testServer = cds.test().in(__dirname + '/..');
@@ -215,7 +215,7 @@ describe('approveSession', () => {
 });
 
 describe('PoC correctness regressions', () => {
-  test('technical tool role cannot approve sessions', async () => {
+  test('technical authenticated client cannot approve sessions', async () => {
     await expect(POST('/wizard/approveSession', { sessionId: seedSessions[0].sessionId }, {
       auth: { username: 'tools', password: 'test' },
     })).rejects.toMatchObject({ response: { status: 403 } });

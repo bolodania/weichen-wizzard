@@ -46,7 +46,7 @@ Plan (no commands executed):
 5. cf push --no-start for CAP, Python agent and Approuter.
 6. Discover their external routes; update HTTPS connection settings.
 7. Update the existing XSUAA service with the exact Approuter login callback.
-8. Remove obsolete agent UPVs; start all apps and check status.
+8. Remove obsolete agent UPVs; restage all apps and check status.
 No app/service deletion, credential printing, or local .env upload.
 EOF
   exit 0
@@ -98,7 +98,10 @@ for variable in HOST PYTHONUNBUFFERED IBD_TESTING AUTH_MODE; do
   cf unset-env tp-wizard-agent "$variable"
 done
 for asset in cap agent router; do
-  cf start "tp-wizard-$asset"
+  # --no-start uploads a new package but an existing app may still be running
+  # its previous droplet. cf start is a no-op for an already-started app.
+  # Restage explicitly activates the newly uploaded source and current bindings.
+  cf restage "tp-wizard-$asset"
 done
 for asset in cap agent router; do
   cf app "tp-wizard-$asset"

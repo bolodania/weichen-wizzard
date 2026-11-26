@@ -110,7 +110,7 @@ Einstellungen nicht überschreiben.
 Business Partner sind keine DS100-Betriebsstellen; für Kundendaten Zuordnung anpassen.
 Host, Passwort und Location ID bleiben in BTP. Service-Pfad nicht doppelt hinterlegen.
 
-## 4. XSUAA-Callback und Benutzerrolle
+## 4. XSUAA-Callback und Anmeldung
 
 Redirect-Platzhalter in `xs-security.json` durch die tatsächliche **Approuter-URL
 mit `/login/callback`** ersetzen:
@@ -121,11 +121,15 @@ cf update-service tp-wizard-xsuaa -c xs-security.json
 cf service tp-wizard-xsuaa
 ```
 
-Erfolg abwarten. Unter **BTP-Subaccount → Security → Role Collections → TP Wizard
-Users → Edit** berechtigte Benutzer mit passendem Identity Provider hinzufügen.
-Fehlt die Sammlung, diese mit der **WizardUser**-Rolle der richtigen App anlegen.
-CF-Entwicklerrechte erlauben nicht automatisch UI-Zugriff. Nach Zuweisung in einem
-neuen privaten Browserfenster anmelden; alte Tokens erhalten keine neuen Scopes.
+Erfolg abwarten und nach Änderungen frisch anmelden. Eigene Scopes, Authorities
+und Role Collections sind nicht erforderlich. Alle Benutzer, deren Tokens die
+gebundene XSUAA-Instanz akzeptiert, haben Zugriff. JWT-Prüfung bleibt aktiv;
+technische Client-Credentials-Tokens dürfen nicht freigeben. Dieser breite Zugriff
+ist nur für eine kontrollierte PoC-Demo geeignet.
+
+Bei Umstellung von der früheren Rollenvariante alle drei Apps neu deployen/restagen:
+`xs-security.json` allein entfernt keine Scope-Prüfung aus Approuter oder Backend.
+Die XSUAA-Service-Instanz muss dafür nicht gelöscht werden.
 
 ## 5. AI-Core-Zugangsdaten
 
@@ -179,6 +183,11 @@ Freigabe testen. In CF ist XSUAA automatisch aktiv; keine Test-/Provider-Flags n
 
 ## Fehlerbehebung und Updates
 
+- **Redeployment-Skript:** Nach `cf push --no-start` werden die Apps ausdrücklich
+  mit `cf restage` neu gebaut und gestartet. `cf start` allein kann bei einer bereits
+  laufenden App die alte Version weiterlaufen lassen. Bei Verwendung einer älteren
+  Skriptversion alle drei Apps nach dem Upload manuell restagen.
+
 ### Alles mit einem Befehl erneut deployen
 
 Für eine bereits vollständig konfigurierte Installation, aus dem Repository-Hauptverzeichnis:
@@ -196,9 +205,10 @@ Python-Tests benötigen ein venv mit Testabhängigkeiten; alternativ `AGENT_PYTH
 setzen. Für CI `--yes`, Tests nur ausdrücklich mit `--skip-tests` überspringen.
 Fehler stoppen den Ablauf; es gibt keinen automatischen Rollback.
 
-- **Forbidden / nur `openid`:** Benutzerrolle zuweisen und frisch anmelden.
+- **Forbidden wegen `WizardUser`:** alte Scope-Prüfung läuft noch; neuen Approuter,
+  CAP und Agent deployen/restagen. Keine Rollenzuweisung für die aktuelle Variante nötig.
 - **Destination 502:** CAP-Logs, exakten Namen, Bindings, Cloud Connector und API-Rechte prüfen.
-- **Werkzeuge fehlschlagen:** CAP_BASE_URL, XSUAA-Binding und technische Scopes prüfen.
+- **Werkzeuge fehlschlagen:** CAP_BASE_URL und gemeinsame XSUAA-Bindings prüfen.
 - **Callback fehlerhaft:** exakte Approuter-Callback-URI registrieren.
 - **Updates:** je Asset `cf push`; CAP-UI vorher bauen. Geänderte URLs erfordern
   neue Verbindungswerte/Callback. Variablenänderungen benötigen Neustart.

@@ -34,13 +34,12 @@ class MiddlewareTests(unittest.TestCase):
         with patch.dict(os.environ, ENV), TestClient(self.app) as client:
             self.assertEqual(client.get("/", headers={"Authorization": "Bearer invalid"}).status_code, 401)
 
-    def test_valid_token_scope_authorization(self):
+    def test_valid_token_without_custom_scopes_is_accepted(self):
         context = Mock()
         context.check_scope.return_value = False
         with patch.dict(os.environ, ENV), patch.object(auth.xssec, "create_security_context", return_value=context), TestClient(self.app) as client:
-            self.assertEqual(client.get("/", headers={"Authorization": "Bearer signed"}).status_code, 403)
-            context.check_scope.side_effect = lambda scope: scope == "wizard.AgentInvoke"
             self.assertEqual(client.get("/", headers={"Authorization": "Bearer signed"}).status_code, 200)
+            context.check_scope.assert_not_called()
 
     def test_cf_fails_closed_without_binding(self):
         with patch.dict(os.environ, {"VCAP_APPLICATION": "{}", "VCAP_SERVICES": "{}"}):

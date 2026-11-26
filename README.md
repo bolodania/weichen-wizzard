@@ -49,15 +49,16 @@ Dialog; die fachliche Ableitung erfolgt ausschließlich im CAP-Regelwerk.
 
 Alle drei Anwendungen laufen auf BTP Cloud Foundry. XSUAA schützt Browser- und
 App-Verbindungen; der Agent ruft CAP direkt auf, ohne Agent Gateway.
-Technische Tokens dürfen nicht freigeben. Die Browserrolle `WizardUser` erlaubt
-im PoC sowohl Erfassung als auch Prüfung; getrennte Benutzerrollen sind noch offen.
+Technische Tokens dürfen nicht freigeben. Alle über die gebundene XSUAA-Instanz
+authentifizierten Benutzer haben PoC-Zugriff, ohne eigene Scopes oder Rollen.
+Dieser breite Zugriff ist nur für kontrollierte Demos geeignet.
 Für Internet-Destinations entfällt der Cloud Connector.
 
 ## Deployment auf BTP Cloud Foundry
 
 Siehe [Schritt-für-Schritt-Anleitung](docs/README-deployment-cf.md): Services anlegen,
 drei Apps mit `cf push` deployen, URLs verbinden, Kundendestination und AI Core
-konfigurieren sowie Benutzerrollen zuweisen. Der Destination-Name ist nicht vorbelegt;
+konfigurieren. Der Destination-Name ist nicht vorbelegt;
 API-Pfad, EntitySet und Feldzuordnung sind konfigurierbar.
 
 Bereits konfigurierte CF-Installation komplett erneut deployen:

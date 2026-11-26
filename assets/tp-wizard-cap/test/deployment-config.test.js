@@ -36,10 +36,12 @@ describe('XSUAA HTTPS Cloud Foundry PoC configuration', () => {
       expect(agent.env).not.toHaveProperty(variable);
     }
     const security = JSON.parse(fs.readFileSync(path.join(root, '../../xs-security.json'), 'utf8'));
-    expect(security.authorities).not.toContain('$XSAPPNAME.WizardUser');
-    expect(security.authorities).toEqual(['$XSAPPNAME.CAPTools', '$XSAPPNAME.AgentInvoke']);
+    for (const property of ['scopes', 'authorities', 'role-templates', 'role-collections']) {
+      expect(security).not.toHaveProperty(property);
+    }
     const routes = JSON.parse(fs.readFileSync(path.join(root, '../tp-wizard-router/xs-app.json'), 'utf8')).routes;
     expect(routes.every((r) => r.authenticationType === 'xsuaa' && r.csrfProtection)).toBe(true);
+    expect(routes.every((r) => !Object.hasOwn(r, 'scope'))).toBe(true);
   });
 
   test('starts in-memory and configures API independently of destination host', () => {

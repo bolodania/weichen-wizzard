@@ -32,7 +32,7 @@ test('default /agent proxy targets IPv4 rather than the macOS AirPlay listener',
   }
 });
 
-test('bootstrap routes require authenticated users with scopes in XSUAA mode', () => {
+test('bootstrap routes accept authenticated users without custom scopes in XSUAA mode', () => {
   const middleware = [];
   const app = { get: jest.fn(), post: jest.fn(), use: (route) => middleware.push(route) };
   const cds = {
@@ -50,9 +50,6 @@ test('bootstrap routes require authenticated users with scopes in XSUAA mode', (
   guard({}, res, next);
   expect(res.status).toHaveBeenCalledWith(401);
   cds.context.user.is = (role) => role === 'authenticated-user';
-  guard({}, res, next);
-  expect(res.status).toHaveBeenCalledWith(403);
-  cds.context.user.is = (role) => ['authenticated-user', 'WizardUser'].includes(role);
   guard({}, res, next);
   expect(next).toHaveBeenCalled();
 });
