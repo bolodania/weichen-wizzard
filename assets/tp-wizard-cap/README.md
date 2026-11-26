@@ -72,9 +72,6 @@ npm run build      # CAP + aktuelle app-field bauen (nicht den alten React-Wizar
   über `localhost`/IPv6 statt des Python-Agenten antworten kann (HTTP 403).
 - Die Einreichung darf offene Angaben zur Prüfung enthalten. **Freigabe** wird dagegen
   bei fehlenden Pflichtangaben oder leerer TP-Struktur mit HTTP 422 abgewiesen.
-- PDF-Textextraktion nutzt optional `pdftotext` (Poppler). Ohne dieses Programm ist
-  keine PDF-Extraktion möglich; alternativ UTF-8-Textdateien hochladen. Defekte PDFs
-  werden abgewiesen, nicht aus Rohbytes interpretiert. Keine OCR verfügbar.
 - Echter SAP-Zugriff wird ausdrücklich mit `FL_MOCK=false` aktiviert; siehe unten.
 
 ## Cloud Foundry: XSUAA und HTTPS

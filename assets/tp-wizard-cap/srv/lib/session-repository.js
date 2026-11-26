@@ -61,9 +61,6 @@ async function saveSnapshot(db, session, katalog) {
   await db.run(DELETE.from('tp.wizard.DerivedTP').where({ session_sessionId: session.sessionId }));
   if (tps.length) await db.run(INSERT.into('tp.wizard.DerivedTP').entries(
     tps.map((tp) => ({ ...tp, session_sessionId: session.sessionId }))));
-  // A stored document analysis is a snapshot, never claim it reflects new answers.
-  await db.run(UPDATE('tp.wizard.SessionDocument').set({ analysisJson: null, analysisDoneAt: null })
-    .where({ sessionId: session.sessionId }));
   return tps;
 }
 

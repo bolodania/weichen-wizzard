@@ -289,6 +289,21 @@ describe('approveSession', () => {
 });
 
 describe('PoC correctness regressions', () => {
+  test('manual answer correction still clears document provenance without upload storage', async () => {
+    const sid = await createSession('NI', '996', 'EWR', 'Die Zungenvorrichtung hat 2 Verschlussebenen.');
+    await POST('/wizard/applyDocumentValues', { sessionId: sid,
+      values: JSON.stringify([{ angabe: 'zgv_ve', wert: '2', textstelle: '2 Verschlussebenen' }]) });
+    await POST('/wizard/submitSession', { sessionId: sid });
+    await POST('/wizard/editAnswer', { sessionId: sid, questionId: 'zgv_ve', answer: '3' });
+    const context = parseStringResponse(await GET(`/wizard/getSessionContext(sessionId='${sid}')`));
+    expect(context.answers.find((answer) => answer.questionId === 'zgv_ve'))
+      .toMatchObject({ answer: '3', beleg: null, herkunft: 'Manuell' });
+  });
+
+  test.each(['uploadDocument', 'analyseDocument', 'approverChat'])('retired action %s is not exposed', async (name) => {
+    await expect(POST(`/wizard/${name}`, {})).rejects.toMatchObject({ response: { status: 404 } });
+  });
+
   test('technical authenticated client cannot approve sessions', async () => {
     await expect(POST('/wizard/approveSession', { sessionId: seedSessions[0].sessionId }, {
       auth: { username: 'tools', password: 'test' },
@@ -389,20 +404,7 @@ describe('PoC correctness regressions', () => {
     expect(JSON.parse(result.data.created)).toHaveLength(29);
   });
 
-  test('document analysis accepts wrapped citations and explains open inputs', async () => {
-    const text = 'Die Zungenvorrichtung hat 8 Verschlussebenen.';
-    const sid = await createSession('NI', '4105', 'EWR', text);
-    await POST('/wizard/applyDocumentValues', {
-      sessionId: sid, values: JSON.stringify([{ angabe: 'zgv_ve', wert: '8', textstelle: '8 Verschlussebenen' }]),
-    });
-    const result = await POST('/wizard/uploadDocument', {
-      sessionId: sid, filename: 'citation.txt', mimeType: 'text/plain', contentB64: Buffer.from(text).toString('base64'),
-    });
-    const analysis = JSON.parse(result.data.analysisJson);
-    expect(analysis.nichtBelegteWerte).toEqual([]);
-    expect(analysis.offeneAngaben[0]).toEqual({ questionId: expect.any(String), hint: expect.any(String) });
-    expect(analysis.fehlendeHinweise.some((r) => r.muster === '')).toBe(false);
-  });
+
 });
 
 // ── listPendingSessions ───────────────────────────────────────────────────────
@@ -508,104 +510,5 @@ describe('DerivedTP-Hierarchie', () => {
       expect(tp.tpKey).toBeTruthy();
       expect(tp.tpLabel).toBeTruthy();
     }
-  });
-});
-
-// ── PDF Upload & Analyse (M2: Dokument-Upload-Feature) ────────────────────────
-describe('uploadDocument & analyseDocument', () => {
-  test('answer correction invalidates document analysis and removes old citations', async () => {
-    const sid = await createSession('NI', '996', 'EWR');
-    await POST('/wizard/uploadDocument', {sessionId: sid, filename: 'values.txt', mimeType: 'text/plain',
-      contentB64: Buffer.from('Die Zungenvorrichtung hat 2 Verschlussebenen.').toString('base64')});
-    await POST('/wizard/applyDocumentValues', {sessionId: sid,
-      values: JSON.stringify([{angabe: 'zgv_ve', wert: '2', textstelle: '2 Verschlussebenen'}])});
-    await POST('/wizard/submitSession', {sessionId: sid});
-    await POST('/wizard/analyseDocument', {sessionId: sid, filename: 'values.txt'});
-    await POST('/wizard/editAnswer', {sessionId: sid, questionId: 'zgv_ve', answer: '3'});
-    const doc = await GET(`/wizard/SessionDocuments(sessionId='${sid}',filename='values.txt',IsActiveEntity=true)`);
-    expect(doc.data.analysisDoneAt).toBeNull();
-    const context = parseStringResponse(await GET(`/wizard/getSessionContext(sessionId='${sid}')`));
-    expect(context.answers.find(a => a.questionId === 'zgv_ve')).toMatchObject({answer: '3', beleg: null, herkunft: 'Manuell'});
-  });
-  test('uploadDocument speichert PDF und analysiert Pflicht-/Optional-TPs', async () => {
-    const sid = await createSession('NI', '8001', 'EWR');
-    
-    // Simuliere ein einfaches PDF (base64-kodiert)
-    const mockPdfContent = Buffer.from('Weiche NI 8001').toString('base64');
-    
-    const res = await POST('/wizard/uploadDocument', {
-      sessionId: sid,
-      filename: 'test-weiche.pdf',
-      mimeType: 'text/plain',
-      contentB64: mockPdfContent
-    });
-
-    expect(res.status).toBe(200);
-    const body = res.data.value ?? res.data;
-    expect(body.sessionId).toBe(sid);
-    expect(body.filename).toBe('test-weiche.pdf');
-    expect(body.analysisJson).toBeTruthy();
-
-    const analysis = JSON.parse(body.analysisJson);
-    expect(analysis).toHaveProperty('pflichtTps');
-    expect(analysis).toHaveProperty('optionalTps');
-    expect(analysis).toHaveProperty('fehlendeHinweise');
-    expect(Array.isArray(analysis.pflichtTps)).toBe(true);
-  });
-
-  test('uploadDocument gibt 400 bei fehlenden Pflichtfeldern', async () => {
-    await expect(POST('/wizard/uploadDocument', { sessionId: 'test' }))
-      .rejects.toMatchObject({ response: { status: 400 } });
-  });
-
-  test('analyseDocument führt erneute Analyse auf bestehendem Dokument aus', async () => {
-    const sid = await createSession('NI', '8002', 'EWR');
-    
-    // Erst hochladen
-    const mockPdf = Buffer.from('Fertigmeldung Weiche').toString('base64');
-    await POST('/wizard/uploadDocument', {
-      sessionId: sid,
-      filename: 'reanalyse-test.pdf',
-      mimeType: 'text/plain',
-      contentB64: mockPdf
-    });
-
-    // Dann erneut analysieren
-    const res = await POST('/wizard/analyseDocument', {
-      sessionId: sid,
-      filename: 'reanalyse-test.pdf'
-    });
-
-    expect(res.status).toBe(200);
-    const body = res.data.value ?? res.data;
-    expect(body.sessionId).toBe(sid);
-    expect(body.analysisJson).toBeTruthy();
-    
-    const analysis = JSON.parse(body.analysisJson);
-    expect(analysis).toHaveProperty('pflichtTps');
-    expect(analysis).toHaveProperty('summary');
-  });
-
-  test('analyseDocument gibt 404 wenn Dokument nicht existiert', async () => {
-    const sid = await createSession('NI', '8003', 'EWR');
-    await expect(POST('/wizard/analyseDocument', {
-      sessionId: sid,
-      filename: 'nicht-vorhanden.pdf'
-    })).rejects.toMatchObject({ response: { status: 404 } });
-  });
-});
-
-// ── Approver Chat (M2: Chat-Feature für Approver) ─────────────────────────────
-describe('approverChat', () => {
-  test('approverChat gibt 400 bei fehlender message', async () => {
-    const sid = await createSession('NI', '9002', 'EWR');
-    await expect(POST('/wizard/approverChat', { sessionId: sid }))
-      .rejects.toMatchObject({ response: { status: 400 } });
-  });
-
-  test('approverChat reports unavailable agent as 502', async () => {
-    const sid = await createSession('NI', '9003', 'EWR');
-    await expect(POST('/wizard/approverChat', {sessionId: sid, message: 'Prüfen'}))
-      .rejects.toMatchObject({response: {status: 502}});
   });
 });

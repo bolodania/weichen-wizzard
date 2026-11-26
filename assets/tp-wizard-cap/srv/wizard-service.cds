@@ -29,46 +29,6 @@ service WizardService @(path: '/wizard', requires: 'authenticated-user') {
   // DerivedTPs — read-only snapshot of the TP structure Thomas reviews
   @readonly entity DerivedTPs as projection on wizard.DerivedTP;
 
-  // SessionDocuments — PDFs uploaded by Thomas for a session
-  @readonly entity SessionDocuments as projection on wizard.SessionDocument
-    excluding { content };   // content served via dedicated action, not OData stream
-
-  // ── PDF-Upload & Analyse ─────────────────────────────────────────────────
-
-  // Upload a PDF (base64-encoded) and trigger text extraction + rule analysis
-  action uploadDocument(
-    sessionId  : String,
-    filename   : String,
-    mimeType   : String(100),
-    contentB64 : String
-  ) returns {
-    sessionId    : String;
-    filename     : String;
-    analysisJson : String;   // JSON with pflicht/optional/missing/hints
-  };
-
-  // Re-run rule analysis on an already-uploaded document
-  action analyseDocument(
-    sessionId : String,
-    filename  : String
-  ) returns {
-    sessionId    : String;
-    analysisJson : String;
-  };
-
-  // ── Approver Chat ────────────────────────────────────────────────────────
-
-  // Send a chat message from Thomas to the agent (A2A proxy)
-  action approverChat(
-    sessionId  : String,
-    contextId  : String(100),
-    message    : String
-  ) returns {
-    sessionId  : String;
-    contextId  : String;
-    reply      : String;
-  };
-
   // ── Agent / app-field actions (kept for backward compatibility) ───────────
 
   action createSession(

@@ -127,31 +127,6 @@
             "required": []
           }
         },
-        "analyseDocument": {
-          "description": "Analysiert ein hochgeladenes Dokument für eine Session: prüft Pflicht-TPs, optionale TPs, fehlende Angaben und Belegstellen.",
-          "http_endpoint": "/wizard/analyseDocument",
-          "http_method": "POST",
-          "input_schema": {
-            "type": "object",
-            "properties": {
-              "sessionId": {
-                "type": "string",
-                "description": "Session-ID"
-              },
-              "filename": {
-                "type": "string",
-                "description": "Dateiname des hochgeladenen Dokuments"
-              }
-            },
-            "required": [
-              "sessionId",
-              "filename"
-            ]
-          },
-          "modes": [
-            "review"
-          ]
-        },
         "editAnswer": {
           "description": "Ändert eine Antwort in einer Session (nur im Status submitted/editing). Gibt die aktualisierte TP-Vorschau zurück.",
           "http_endpoint": "/wizard/editAnswer",

@@ -100,7 +100,6 @@ entity WizardSession {
   reviewComment  : String(500);  // optionale Notiz von Thomas
   answers        : Composition of many SessionAnswer  on answers.session   = $self;
   tps            : Composition of many DerivedTP      on tps.session       = $self;
-  documents      : Composition of many SessionDocument on documents.sessionId = $self.sessionId;
 }
 
 // Abgeleitete TPs — Snapshot der Struktur, bei submit/edit aus dem Regelwerk neu berechnet
@@ -117,18 +116,6 @@ entity DerivedTP {
   klassen          : String(300);
   regel            : Integer;      // Regelnummer, die diesen TP erzeugt hat
   muster           : String(20);   // zugrunde liegendes Regel-Muster
-}
-
-// PDF-Dokument, das Thomas zu einer Session hochlädt (optional)
-entity SessionDocument {
-  key sessionId    : String(36);   // FK zu WizardSession
-  key filename     : String(200);
-  mimeType         : String(100);
-  content          : LargeBinary;            // Rohdaten des PDFs
-  uploadedAt       : DateTime;
-  extractedText    : LargeString;            // per pdftotext / Fallback extrahierter Text
-  analysisJson     : LargeString;            // JSON-Ergebnis der Regelwerk-Analyse
-  analysisDoneAt   : DateTime;
 }
 
 // Einzelantworten — im Fiori Object Page editierbar

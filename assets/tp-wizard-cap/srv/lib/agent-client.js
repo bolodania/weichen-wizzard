@@ -41,19 +41,4 @@ function agentUrl() {
   return url;
 }
 
-async function sendMessage(body, incoming, mode = 'review') {
-  const url = agentUrl();
-  const auth = await authorization(incoming);
-  const response = await fetch(url, {
-    method: 'POST', signal: AbortSignal.timeout(120000),
-    headers: { 'Content-Type': 'application/json', 'X-Wizard-Mode': mode,
-      ...(auth ? { Authorization: auth } : {}) },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) throw new Error(`Agent HTTP ${response.status}`);
-  const parsed = await response.json();
-  if (parsed.error || parsed.result?.status?.state === 'failed') throw new Error('Agent-Aufruf fehlgeschlagen');
-  return parsed;
-}
-
-module.exports = { authorization, agentUrl, sendMessage };
+module.exports = { authorization, agentUrl };
