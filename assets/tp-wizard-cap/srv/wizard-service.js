@@ -43,59 +43,69 @@ async function _doApprove(sessionId, req) {
   if (!req.user?.is('authenticated-user') || req.user.is('system-user')) {
     return req.reject(403, 'Freigabe erfordert einen angemeldeten Benutzer, keinen technischen Client');
   }
-  const session = await _getSession(sessionId);
-  if (!session) return req.error(404, `Session ${sessionId} nicht gefunden`);
-  if (!['submitted', 'editing'].includes(session.status)) {
-    return req.error(409, `Session hat Status "${session.status}" — approve erfordert "submitted" oder "editing"`);
-  }
-
   const db = await cds.connect.to('db');
+  // Explicit root transactions release SQLite's connection before slow SAP I/O.
+  // Never inherit the action's transaction or hold a DB lock across HTTP calls.
+  const txContext = { tenant: req.tenant, user: req.user, locale: req.locale };
+  const prepared = await db.tx(txContext, async () => {
+    const session = await _getSession(sessionId);
+    if (!session) return req.reject(404, `Session ${sessionId} nicht gefunden`);
+    if (!['submitted', 'editing'].includes(session.status)) {
+      return req.reject(409, `Session hat Status "${session.status}" — approve erfordert "submitted" oder "editing"`);
+    }
 
-  // Read answers directly from SessionAnswer rows — authoritative after FE draft save.
-  const answerRows = await db.run(SELECT.from('tp.wizard.SessionAnswer').where({ session_sessionId: sessionId }));
-  if (answerRows.length > 0) {
-    session.answers = answerRows.map((r) => ({
-      questionId: r.questionId,
-      answer: r.answer,
-      source: r.source,
-      herkunft: r.herkunft,
-      beleg: r.beleg,
-      agentProposal: r.agentProposal,
-    }));
-  }
+    // Read answers directly from SessionAnswer rows — authoritative after FE draft save.
+    const answerRows = await db.run(SELECT.from('tp.wizard.SessionAnswer').where({ session_sessionId: sessionId }));
+    if (answerRows.length > 0) {
+      session.answers = answerRows.map((r) => ({
+        questionId: r.questionId,
+        answer: r.answer,
+        source: r.source,
+        herkunft: r.herkunft,
+        beleg: r.beleg,
+        agentProposal: r.agentProposal,
+      }));
+    }
 
-  const katalog = await ladeKatalog();
-  for (const a of session.answers) {
-    try { a.answer = validateAnswer(katalog, a.questionId, a.answer); }
-    catch (e) { return req.reject(422, e.message); }
-  }
-  const { tps, offeneAngaben } = ableitenTps(katalog, session);
-  if (offeneAngaben.length) {
-    return req.reject({ status: 422, code: 'MISSING_REQUIRED_ANSWERS',
-      message: 'Bitte die noch offenen Angaben ergänzen.',
-      details: fehlendeFragen(katalog, session).map((q) => ({ code: 'MISSING_REQUIRED_ANSWER', target: q.id, message: q.text })) });
-  }
+    const katalog = await ladeKatalog();
+    for (const a of session.answers) {
+      try { a.answer = validateAnswer(katalog, a.questionId, a.answer); }
+      catch (e) { return req.reject(422, e.message); }
+    }
+    const { tps, offeneAngaben } = ableitenTps(katalog, session);
+    if (offeneAngaben.length) {
+      return req.reject({ status: 422, code: 'MISSING_REQUIRED_ANSWERS',
+        message: 'Bitte die noch offenen Angaben ergänzen.',
+        details: fehlendeFragen(katalog, session).map((q) => ({ code: 'MISSING_REQUIRED_ANSWER', target: q.id, message: q.text })) });
+    }
 
-  const validation = validiere(tps);
-  if (!validation.valid) {
-    LOG.warn(`[M4.missed]: TP-Validierung fehlgeschlagen: ${validation.warnings.join(', ')}`);
-    return req.error(422, `TP-Struktur ungültig: ${validation.warnings.join(', ')}`);
-  }
+    const validation = validiere(tps);
+    if (!validation.valid) {
+      LOG.warn(`[M4.missed]: TP-Validierung fehlgeschlagen: ${validation.warnings.join(', ')}`);
+      return req.reject(422, `TP-Struktur ungültig: ${validation.warnings.join(', ')}`);
+    }
 
-  // Reject configuration/payload errors before claiming or contacting SAP.
-  try { flService.prepare(tps); }
-  catch (error) { return req.reject(error.status || 422, error.message); }
+    // Reject configuration/payload errors before claiming or contacting SAP.
+    try { flService.prepare(tps); }
+    catch (error) { return req.reject(error.status || 422, error.message); }
 
+    const claimed = await db.run(UPDATE('tp.wizard.WizardSession').set({ status: 'approved' })
+      .where({ sessionId, status: { in: ['submitted', 'editing'] } }));
+    if (!claimed) return req.reject(409, 'Session wird bereits freigegeben');
+    session.approvedAt = new Date().toISOString();
+    await db.run(UPDATE('tp.wizard.WizardSession').set({ approvedAt: session.approvedAt })
+      .where({ sessionId }));
+    return { session, tps };
+  });
+  const { session, tps } = prepared;
   let result = { created: [], failed: [] };
-  const claimed = await db.run(UPDATE('tp.wizard.WizardSession').set({ status: 'approved' })
-    .where({ sessionId, status: { in: ['submitted', 'editing'] } }));
-  if (!claimed) return req.reject(409, 'Session wird bereits freigegeben');
-  session.approvedAt = new Date().toISOString();
   try {
     result = await flService.bulkCreateFunctionalLocations(tps, req, async (progress) => {
       result = JSON.parse(JSON.stringify(progress));
-      await db.run(UPDATE('tp.wizard.WizardSession').set({ creationResult: JSON.stringify(result) })
-        .where({ sessionId }));
+      await db.tx(txContext, async (tx) => {
+        await tx.run(UPDATE('tp.wizard.WizardSession').set({ creationResult: JSON.stringify(result) })
+          .where({ sessionId }));
+      });
     });
   } catch (err) {
     LOG.error('SAP-Schreibzugriff unterbrochen', { causes: require('./lib/location-value-help').errorDetails(err) });
@@ -108,7 +118,7 @@ async function _doApprove(sessionId, req) {
   session.derivedTPCount = tps.length;
   session.creationResult = JSON.stringify(result);
 
-  await db.run(
+  await db.tx(txContext, async (tx) => tx.run(
     UPSERT.into('tp.wizard.WizardSession').entries({
       sessionId: session.sessionId,
       ds100: session.ds100,
@@ -122,7 +132,7 @@ async function _doApprove(sessionId, req) {
       approvedAt: session.approvedAt,
       creationResult: session.creationResult,
     }),
-  );
+  ));
 
   if (result.failed.length) {
     LOG.warn(`[M4.missed]: ${result.failed.length} TPs konnten nicht angelegt werden`);

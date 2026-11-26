@@ -1,9 +1,10 @@
 sap.ui.define([
   'sap/m/Dialog', 'sap/m/Button', 'sap/m/VBox', 'sap/m/Label', 'sap/m/Input',
   'sap/m/Select', 'sap/ui/core/Item', 'sap/m/Text', 'sap/m/MessageStrip',
-  'sap/m/MessageBox', 'sap/m/MessageToast', 'sap/base/Log', 'sap/ui/model/resource/ResourceModel'
+  'sap/m/MessageBox', 'sap/m/MessageToast', 'sap/base/Log', 'sap/ui/model/resource/ResourceModel',
+  'sap/m/BusyDialog'
 ], function (Dialog, Button, VBox, Label, Input, Select, Item, Text, MessageStrip,
-  MessageBox, MessageToast, Log, ResourceModel) {
+  MessageBox, MessageToast, Log, ResourceModel, BusyDialog) {
   'use strict';
   const resources = new ResourceModel({ bundleName: 'tp.wizard.approve.i18n.i18n' });
   let running = false;
@@ -50,7 +51,7 @@ sap.ui.define([
     });
     let dialog;
     const save = new Button({ text: bundle.getText('save'), type: 'Emphasized', press: async function () {
-      dialog.setBusy(true); save.setEnabled(false); cancel.setEnabled(false); notice.setVisible(false);
+      dialog.setBusyIndicatorDelay(0); dialog.setBusy(true); save.setEnabled(false); cancel.setEnabled(false); notice.setVisible(false);
       try {
         const answers = {};
         Object.keys(controls).forEach(function (id) {
@@ -81,27 +82,39 @@ sap.ui.define([
     enabled: function (context, selected) { return !running && eligible(contextOf(context, selected)); },
     approve: async function (context, selected) {
       if (running) return;
-      const bundle = await resources.getResourceBundle();
-      context = contextOf(context, selected);
-      if (!eligible(context)) { MessageBox.information(bundle.getText('selectOne')); return; }
       running = true;
+      let busy;
       try {
+        const bundle = await resources.getResourceBundle();
+        context = contextOf(context, selected);
+        if (!eligible(context)) { MessageBox.information(bundle.getText('selectOne')); return; }
+        busy = new BusyDialog({ text: bundle.getText('approvalChecking'), showCancelButton: false });
+        busy.open();
         const model = context.getModel();
         const sid = context.getProperty('sessionId');
         const current = await state(model, sid);
-        if (current.missingQuestions.length) { completion(context, current.missingQuestions, bundle); return; }
+        if (current.missingQuestions.length) {
+          busy.close(); busy.destroy(); busy = null;
+          completion(context, current.missingQuestions, bundle); return;
+        }
         // Preflight never writes to SAP. Only this explicit human click approves.
+        busy.setText(bundle.getText('approvalCreating'));
         const result = await request(model, context.getPath() + '/WizardService.approve(...)', {});
+        busy.close(); busy.destroy(); busy = null;
         context.getBinding().refresh();
         if (JSON.parse(result.failed).length) MessageBox.warning(bundle.getText('failed'));
         else MessageToast.show(bundle.getText('created'));
       } catch (error) {
+        if (busy) { busy.close(); busy.destroy(); busy = null; }
         // If state changed after preflight, show the completion form rather than
         // an opaque technical-ID error. All other failures remain visible.
-        const current = await state(context.getModel(), context.getProperty('sessionId')).catch(function () { return null; });
-        if (current && current.missingQuestions.length) completion(context, current.missingQuestions, bundle);
+        const current = context && await state(context.getModel(), context.getProperty('sessionId')).catch(function () { return null; });
+        if (current && current.missingQuestions.length) completion(context, current.missingQuestions, await resources.getResourceBundle());
         else MessageBox.error(error.message);
-      } finally { running = false; }
+      } finally {
+        if (busy) { busy.close(); busy.destroy(); }
+        running = false;
+      }
     }
   };
 });

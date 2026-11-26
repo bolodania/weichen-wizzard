@@ -11,6 +11,12 @@
    Nach dem Speichern die neu berechnete TP-Struktur prüfen und erneut **Freigeben** klicken.
    Erst dieser Klick bei vollständigen Angaben legt TPs an. Technische Clients dürfen nicht freigeben.
 
+Während der Freigabe zeigt ein Ladeindikator die Prüfung bzw. SAP-Anlage an.
+Die Freigabe-App wartet auf das Ergebnis; andere CAP-Anfragen bleiben nutzbar.
+SAP-Aufrufe laufen außerhalb kurzer DB-Transaktionen. Der Status `approved` sperrt
+weitere Freigaben derselben Session bis zum Ergebnis (`created` oder `failed`).
+Keine automatischen POST-Wiederholungen; bei Abbruch zuerst Ergebnisse in SAP prüfen.
+
 Die früheren KI-/Dokumentbereiche inklusive PDF-Upload, Analyse und Approver-Chat
 sind entfernt. Die Felderfassung mit Agent und belegten Fertigmeldungswerten bleibt bestehen.
 

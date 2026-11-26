@@ -96,6 +96,12 @@ Teilfehler führen zu `failed`. Erneute Freigaben sind gesperrt, POSTs werden ni
 automatisch wiederholt. `unknown` erfordert Abgleich in SAP, nicht blindes Wiederholen.
 Kein atomarer SAP-Batch: erfolgreiche Teilanlagen bleiben bestehen.
 
+Die Freigabe zeigt einen Ladeindikator. Validierung/Reservierung, Fortschritt und
+Endergebnis nutzen kurze eigene DB-Transaktionen; während der SAP-Aufrufe bleibt
+die SQLite-Verbindung frei für andere CAP-Anfragen. `approved` sperrt doppelte
+Freigaben auch bei laufender Anlage. Bei Prozessabbruch in diesem Status zuerst
+SAP abgleichen; nicht ungeprüft erneut anlegen.
+
 Die PoC-Datenbank bleibt im Speicher; Neustarts verlieren Ergebnisse und Sperren.
 Auch DB-Rollback nach externem POST kann SAP nicht zurückrollen. Vor produktivem
 Einsatz sind dauerhafte Persistenz und ein Recovery-/Abgleichverfahren erforderlich.

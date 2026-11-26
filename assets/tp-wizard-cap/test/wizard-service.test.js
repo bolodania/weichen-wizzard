@@ -247,6 +247,45 @@ describe('missing-answer completion', () => {
 });
 
 describe('approveSession', () => {
+  test.each(['unbound', 'bound'])('slow %s SAP approval does not block other CAP reads/writes or allow duplicate approval', async (endpoint) => {
+    const sid = await createSession('NI', '4996', 'EWR');
+    await completeSession(sid);
+    await POST('/wizard/submitSession', { sessionId: sid });
+    let entered;
+    let release;
+    const started = new Promise((resolve) => { entered = resolve; });
+    const pendingSap = new Promise((resolve) => { release = resolve; });
+    const spy = jest.spyOn(flService, 'bulkCreateFunctionalLocations').mockImplementation(async (tps, _req, progress) => {
+      entered();
+      await pendingSap;
+      const result = { created: tps.map((tp) => tp.tpKey), failed: [], mock: true };
+      await progress(result);
+      return result;
+    });
+    let approval;
+    let timer;
+    try {
+      approval = endpoint === 'bound'
+        ? POST(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)/WizardService.approve`, {})
+        : POST('/wizard/approveSession', { sessionId: sid });
+      const timeout = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('CAP blocked during SAP approval')), 2000); });
+      await Promise.race([started, timeout]);
+      await Promise.race([(async () => {
+        const state = await GET(`/wizard/getSessionState(sessionId='${sid}')`);
+        expect(JSON.parse(state.data.value).status).toBe('approved');
+        await createSession('NI', '4995', 'EWR');
+        await expect(POST('/wizard/approveSession', { sessionId: sid })).rejects.toMatchObject({ response: { status: 409 } });
+        expect(spy).toHaveBeenCalledTimes(1);
+      })(), timeout]);
+    } finally {
+      clearTimeout(timer);
+      release();
+      if (approval) await approval;
+      spy.mockRestore();
+    }
+    expect((await GET(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)`)).data.status).toBe('created');
+  });
+
   test('real adapter posts every derived TP, persists partial results and blocks repeat approval', async () => {
     const sid = await createSession('NI', '4998', 'EWR');
     await completeSession(sid);
