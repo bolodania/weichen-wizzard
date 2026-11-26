@@ -64,6 +64,11 @@ function mapFrage(e) {
   };
 }
 
+function fehlendeFragen(katalog, session) {
+  const offen = new Set(ableitenTps(katalog, session).offeneAngaben);
+  return katalog.eingaben.filter((e) => offen.has(e.ID)).map(mapFrage);
+}
+
 // Nächste zu stellende Frage: erste nicht abgeleitete, sichtbare, noch nicht
 // beantwortete Angabe in Katalogreihenfolge (grundbauform kommt aus basicForm).
 function naechsteFrage(katalog, session) {
@@ -190,6 +195,7 @@ module.exports = {
   angabenMap,
   ableitenTps,
   naechsteFrage,
+  fehlendeFragen,
   vorgaben,
   normalisiereWert,
   pruefeWert,

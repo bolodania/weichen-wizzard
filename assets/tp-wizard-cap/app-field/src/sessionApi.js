@@ -18,3 +18,13 @@ export async function submitSession(sessionId) {
   if (!['submitted', 'editing'].includes(state.status)) throw new Error('Einreichung nicht bestätigt');
   return state;
 }
+
+export async function completeMissingAnswers(sessionId, answers) {
+  const response = await fetch('/wizard/completeMissingAnswers', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId, answers: JSON.stringify(answers) }),
+  });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error?.message || `HTTP ${response.status}`);
+  return JSON.parse(body.value);
+}

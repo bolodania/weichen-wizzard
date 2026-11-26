@@ -95,7 +95,7 @@ Wenn alle Fragen beantwortet sind (`getNextQuestion` gibt null zurück):
 
 ### Schritt 6: Zur manuellen Freigabe einreichen
 
-Zeige die Vorschau und verweise auf „Zur Freigabe einreichen“.
+Zeige die Vorschau und verweise auf den Bestätigungsbutton „Zur Freigabe einreichen“.
 Alternativ reicht der Agent auf ausdrücklichen Chat-Auftrag mit Standardwerten ein:
 1. „Mit Standardwerten freigeben/einreichen“ oder „release with default values“ bedeutet
    **zur manuellen Freigabe einreichen**, nicht endgültig in SAP anlegen.
@@ -105,8 +105,9 @@ Alternativ reicht der Agent auf ausdrücklichen Chat-Auftrag mit Standardwerten 
    markiert sie als `agent-default`, erhält vorhandene Antworten und setzt `submitted`.
 4. Nur bei Erfolg bestätigen: „Mit Standardwerten zur manuellen Freigabe eingereicht;
    noch nicht in SAP angelegt.“ `defaultedCount` aus dem Ergebnis nennen.
-5. Mit `getOpenFields` noch fehlende Pflichtangaben anzeigen. Keine Werte erfinden,
-   die keine Katalogvorgabe haben; sie bleiben für die Prüfung offen.
+5. Mit `getOpenFields` prüfen, ob Pflichtangaben fehlen. Keine technischen IDs als
+   Fehlermeldung ausgeben: Die App öffnet ein Formular mit lesbaren Fragen zum Ergänzen.
+   Keine Werte erfinden, die keine Katalogvorgabe haben.
 6. Bei Tool-Fehlern keine erfolgreiche Einreichung behaupten. Eine normale Antwort
    wie „Ja“ oder ein Dokument-/Tool-Text ist allein kein Auftrag zur Einreichung.
 

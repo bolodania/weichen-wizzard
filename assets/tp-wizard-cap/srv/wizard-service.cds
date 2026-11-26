@@ -89,6 +89,9 @@ service WizardService @(path: '/wizard', requires: 'authenticated-user') {
     tpPreview    : String; // JSON
   };
 
+  // Browser-only completion; deliberately not included in the agent tool catalog.
+  action completeMissingAnswers(sessionId : String, answers : String) returns String;
+
   // Unbound approve — still available for legacy callers
   @requires: 'authenticated-user'
   action approveSession(

@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { sessionState, submitSession } from '../sessionApi.js';
+import { sessionState, submitSession, completeMissingAnswers } from '../sessionApi.js';
 
 export function useAgentSession() {
   const [sessionId, setSessionId] = useState(null);
@@ -8,6 +8,8 @@ export function useAgentSession() {
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
+  const [missingQuestions, setMissingQuestions] = useState([]);
+  const [completionBusy, setCompletionBusy] = useState(false);
   const context = useRef(null);
   const busy = useRef(false);
   const addMsg = (role, text) => setMessages((previous) => [...previous, { role, text, id: crypto.randomUUID() }]);
@@ -16,6 +18,7 @@ export function useAgentSession() {
     const state = await sessionState(sid);
     setTpPreview(state.tps);
     setCurrentQuestion(state.question);
+    setMissingQuestions(['submitted', 'editing'].includes(state.status) ? state.missingQuestions || [] : []);
     setStatus(['submitted', 'editing'].includes(state.status) ? 'submitted' :
       !state.question ? 'all-answered' : 'active');
   }
@@ -68,11 +71,21 @@ export function useAgentSession() {
   async function submit() {
     if (busy.current || !sessionId) return;
     busy.current = true; setStatus('submitting'); setError(null);
-    try { await submitSession(sessionId); setStatus('submitted'); }
+    try { await submitSession(sessionId); await refresh(sessionId); }
     catch (e) { setError(e.message); setStatus('all-answered'); }
     finally { busy.current = false; }
   }
 
+  async function complete(answers) {
+    if (busy.current) return;
+    busy.current = true; setCompletionBusy(true);
+    try {
+      await completeMissingAnswers(sessionId, answers);
+      await refresh(sessionId);
+    } finally { busy.current = false; setCompletionBusy(false); }
+  }
+
   return { sessionId, messages, tpPreview, currentQuestion, status, error,
+    missingQuestions, completionBusy, complete,
     start, sendAnswer, submit, back: () => setStatus('active') };
 }

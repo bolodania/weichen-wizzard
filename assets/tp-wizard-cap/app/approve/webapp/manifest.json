@@ -38,6 +38,10 @@
       }
     },
     "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": { "bundleName": "tp.wizard.approve.i18n.i18n" }
+      },
       "": {
         "type": "sap.ui.model.odata.v4.ODataModel",
         "dataSource": "mainService",
@@ -72,6 +76,18 @@
               "contextPath": "/Sessions",
               "initialLoad": "Enabled",
               "variantManagement": "None",
+              "controlConfiguration": {
+                "@com.sap.vocabularies.UI.v1.LineItem": {
+                  "actions": {
+                    "CompleteAndApprove": {
+                      "press": "tp.wizard.approve.ext.ApprovalActions.approve",
+                      "text": "{i18n>approve}",
+                      "requiresSelection": true,
+                      "enabled": "tp.wizard.approve.ext.ApprovalActions.enabled"
+                    }
+                  }
+                }
+              },
               "navigation": {
                 "Sessions": {
                   "detail": {
@@ -89,7 +105,18 @@
           "options": {
             "settings": {
               "contextPath": "/Sessions",
-              "navigation": {}
+              "navigation": {},
+              "content": {
+                "header": {
+                  "actions": {
+                    "CompleteAndApprove": {
+                      "press": "tp.wizard.approve.ext.ApprovalActions.approve",
+                      "text": "{i18n>approve}",
+                      "enabled": "tp.wizard.approve.ext.ApprovalActions.enabled"
+                    }
+                  }
+                }
+              }
             }
           }
         }

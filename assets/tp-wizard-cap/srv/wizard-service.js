@@ -4,7 +4,7 @@ const cds = require('@sap/cds');
 const { v4: uuidv4 } = require('uuid');
 const flService = require('./fl-service');
 const { ladeKatalog } = require('./lib/katalog');
-const { ableitenTps, naechsteFrage, vorgaben, validiere, uebernehmeDokumentwerte } = require('./lib/weiche');
+const { ableitenTps, naechsteFrage, fehlendeFragen, vorgaben, validiere, uebernehmeDokumentwerte } = require('./lib/weiche');
 
 const LOG = cds.log('wizard-service');
 
@@ -71,7 +71,9 @@ async function _doApprove(sessionId, req) {
   }
   const { tps, offeneAngaben } = ableitenTps(katalog, session);
   if (offeneAngaben.length) {
-    return req.reject(422, `Pflichtangaben fehlen: ${offeneAngaben.join(', ')}`);
+    return req.reject({ status: 422, code: 'MISSING_REQUIRED_ANSWERS',
+      message: 'Bitte die noch offenen Angaben ergänzen.',
+      details: fehlendeFragen(katalog, session).map((q) => ({ code: 'MISSING_REQUIRED_ANSWER', target: q.id, message: q.text })) });
   }
 
   const validation = validiere(tps);
@@ -266,6 +268,7 @@ module.exports = (srv) => {
     if (!session) return req.reject(404, 'Session nicht gefunden');
     const katalog = await ladeKatalog();
     return JSON.stringify({ status: session.status, question: naechsteFrage(katalog, session),
+      missingQuestions: fehlendeFragen(katalog, session),
       ...ableitenTps(katalog, session) });
   });
 
@@ -325,6 +328,41 @@ module.exports = (srv) => {
   }
   srv.on('submitSession', (req) => submit(req.data.sessionId, req));
   srv.on('bulkSubmitWithDefaults', (req) => submit(req.data.sessionId, req, true));
+
+  // Human completion dialog: validate the whole request before persisting;
+  // never overwrite existing answers or trigger approval/SAP creation.
+  srv.on('completeMissingAnswers', async (req) => {
+    if (!req.user?.is('authenticated-user') || req.user.is('system-user')) {
+      return req.reject(403, 'Ergänzung erfordert einen angemeldeten Benutzer');
+    }
+    const session = await _getSession(req.data.sessionId);
+    if (!session) return req.reject(404, 'Session nicht gefunden');
+    if (!['open', 'submitted', 'editing'].includes(session.status)) return req.reject(409, 'Session ist nicht bearbeitbar');
+    let values;
+    try { values = JSON.parse(req.data.answers); }
+    catch { return req.reject(400, 'Antworten müssen als JSON-Objekt übergeben werden'); }
+    if (!values || typeof values !== 'object' || Array.isArray(values)) return req.reject(400, 'Antworten müssen ein Objekt sein');
+    const katalog = await ladeKatalog();
+    const missing = fehlendeFragen(katalog, session);
+    const allowed = new Set(missing.map((q) => q.id));
+    for (const id of Object.keys(values)) {
+      if (!allowed.has(id)) return req.reject(400, 'Vorhandene oder nicht benötigte Antworten dürfen nicht überschrieben werden');
+    }
+    const source = session.status === 'open' ? 'human-confirmed' : 'thomas-edited';
+    for (const q of missing) {
+      if (values[q.id] === undefined || values[q.id] === '') continue;
+      // Earlier answers can make dependent questions irrelevant.
+      if (!fehlendeFragen(katalog, session).some((f) => f.id === q.id)) continue;
+      let value;
+      try { value = validateAnswer(katalog, q.id, values[q.id]); }
+      catch { return req.reject(400, `Bitte eine gültige Antwort eingeben: ${q.text}`); }
+      correctAnswer(session, q.id, value, source);
+    }
+    if (session.status === 'submitted') session.status = 'editing';
+    await saveSnapshot(await cds.connect.to('db'), session, katalog);
+    return JSON.stringify({ status: session.status, missingQuestions: fehlendeFragen(katalog, session),
+      question: naechsteFrage(katalog, session), ...ableitenTps(katalog, session) });
+  });
 
   async function edit(sessionId, questionId, answer, req) {
     const session = await _getSession(sessionId);

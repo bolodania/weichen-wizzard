@@ -11,6 +11,7 @@ import { MessageInput }   from './components/MessageInput.jsx';
 import { TPPreviewSheet } from './components/TPPreviewSheet.jsx';
 import { SubmitSummary }  from './components/SubmitSummary.jsx';
 import { LocationValueHelp } from './components/LocationValueHelp.jsx';
+import { MissingAnswersDialog } from './components/MissingAnswersDialog.jsx';
 
 function AppHeader({ title, subtitle }) {
   return (
@@ -46,7 +47,8 @@ const BASIC_FORMS = [
 ];
 
 export default function App() {
-  const { sessionId, messages, tpPreview, currentQuestion, status, error, start, sendAnswer, submit, back } = useAgentSession();
+  const { sessionId, messages, tpPreview, currentQuestion, status, error, start, sendAnswer, submit, back,
+    missingQuestions, completionBusy, complete } = useAgentSession();
   const [ds100, setDs100]         = useState('');
   const [switchNum, setSwitchNum] = useState('');
   const [basicForm, setBasicForm] = useState('EWR');
@@ -128,6 +130,7 @@ export default function App() {
           <Button style={{ marginTop: '1.5rem' }} onClick={() => window.location.reload()}>
             Neue Weiche erfassen
           </Button>
+          <MissingAnswersDialog questions={missingQuestions} busy={completionBusy} onSave={complete} />
         </div>
       </>
     );

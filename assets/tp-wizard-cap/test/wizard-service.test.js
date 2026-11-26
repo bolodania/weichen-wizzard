@@ -187,6 +187,65 @@ describe('editAnswer', () => {
 });
 
 // ── approveSession state machine ──────────────────────────────────────────────
+describe('missing-answer completion', () => {
+  test('default submission exposes readable questions; completion preserves answers and never calls SAP', async () => {
+    const sid = await createSession('NI', '7011', 'EWR');
+    await POST('/wizard/submitAnswer', { sessionId: sid, questionId: 'antrieb_art', answer: 'hydraulisch' });
+    const sap = jest.spyOn(flService, 'bulkCreateFunctionalLocations');
+    try {
+      await POST('/wizard/bulkSubmitWithDefaults', { sessionId: sid });
+      let state = parseStringResponse(await GET(`/wizard/getSessionState(sessionId='${sid}')`));
+      expect(state.status).toBe('submitted');
+      expect(state.missingQuestions.find((q) => q.id === 'zgv_ve')).toMatchObject({
+        text: 'Wie viele Verschlussebenen hat die Zungenvorrichtung?', answerType: 'Menge', required: true,
+      });
+      expect(state.missingQuestions.find((q) => q.id === 'heizung').options).toContain('keine');
+      await expect(POST('/wizard/approveSession', { sessionId: sid })).rejects.toMatchObject({
+        response: { status: 422, data: { error: { code: 'MISSING_REQUIRED_ANSWERS', details: expect.arrayContaining([
+          expect.objectContaining({ target: 'zgv_ve', message: 'Wie viele Verschlussebenen hat die Zungenvorrichtung?' }),
+        ]) } } },
+      });
+      const answers = { zgv_ve: '0', zgv_vsfa: 'Ja', zgv_zp: '0', zgv_zp_vsfa: 'Ja',
+        zgv_zr: '0', hz_bauart: '0', hz_zr: '2', zgv_wa: '0', zgv_prss: 'Ja', wsig: '0', wue: 'Nein', heizung: 'keine' };
+      const response = await POST('/wizard/completeMissingAnswers', { sessionId: sid, answers: JSON.stringify(answers) });
+      state = parseStringResponse(response);
+      expect(state.status).toBe('editing');
+      expect(state.missingQuestions).toEqual([]);
+      const context = parseStringResponse(await GET(`/wizard/getSessionContext(sessionId='${sid}')`));
+      expect(context.answers.find((a) => a.questionId === 'antrieb_art').answer).toBe('hydraulisch');
+      expect(context.answers.find((a) => a.questionId === 'heizung')).toMatchObject({ answer: 'keine', source: 'thomas-edited' });
+      for (const id of ['zgv_vsfa', 'zgv_zp_vsfa', 'hz_zr', 'zgv_prss']) {
+        expect(context.answers.some((a) => a.questionId === id)).toBe(false);
+      }
+      expect((await GET(`/wizard/Sessions(sessionId='${sid}',IsActiveEntity=true)`)).data.creationResult).toBeFalsy();
+      expect(sap).not.toHaveBeenCalled();
+    } finally { sap.mockRestore(); }
+  });
+
+  test('invalid completion is atomic, rejects overwrites, and cannot be used by technical clients', async () => {
+    const sid = await createSession('NI', '7012', 'EWR');
+    await POST('/wizard/bulkSubmitWithDefaults', { sessionId: sid });
+    const before = parseStringResponse(await GET(`/wizard/getSessionContext(sessionId='${sid}')`));
+    for (const answers of ['[]', '{invalid', JSON.stringify({ zgv_ve: '2', heizung: 'invalid' }), JSON.stringify({ antrieb_art: 'hydraulisch' })]) {
+      await expect(POST('/wizard/completeMissingAnswers', { sessionId: sid, answers })).rejects.toMatchObject({ response: { status: 400 } });
+    }
+    expect(parseStringResponse(await GET(`/wizard/getSessionContext(sessionId='${sid}')`))).toEqual(before);
+    await expect(POST('/wizard/completeMissingAnswers', { sessionId: sid, answers: '{}' },
+      { auth: { username: 'tools', password: 'test' } })).rejects.toMatchObject({ response: { status: 403 } });
+  });
+
+  test('partial completion returns only still relevant questions', async () => {
+    const sid = await createSession('NI', '7013', 'EWR');
+    await POST('/wizard/bulkSubmitWithDefaults', { sessionId: sid });
+    const state = parseStringResponse(await POST('/wizard/completeMissingAnswers', {
+      sessionId: sid, answers: JSON.stringify({ hz_bauart: '0' }),
+    }));
+    expect(state.missingQuestions.length).toBeGreaterThan(0);
+    expect(state.missingQuestions.some((q) => ['hz_bauart', 'hz_zr'].includes(q.id))).toBe(false);
+    expect(state.missingQuestions.some((q) => q.id === 'zgv_ve')).toBe(true);
+  });
+});
+
 describe('approveSession', () => {
   test('real adapter posts every derived TP, persists partial results and blocks repeat approval', async () => {
     const sid = await createSession('NI', '4998', 'EWR');

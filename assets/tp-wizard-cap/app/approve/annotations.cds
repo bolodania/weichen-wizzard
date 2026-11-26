@@ -27,14 +27,9 @@ annotate WizardService.Sessions with @(
     { $Type: 'UI.DataField', Value: status,         Label: 'Status'         }
   ],
 
-  // Object Page header action + List Report toolbar action (when row selected)
-  UI.Identification: [
-    {
-      $Type:  'UI.DataFieldForAction',
-      Label:  'Freigeben',
-      Action: 'WizardService.approve'
-    }
-  ],
+  // Browser action preflights completeness and opens the completion dialog.
+  // The bound backend approval remains available and guarded for API clients.
+  UI.Identification: [],
 
   // Object Page sections
   UI.Facets: [
