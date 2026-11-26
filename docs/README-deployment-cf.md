@@ -80,6 +80,33 @@ API-Zuordnung auf CAP bei Bedarf mit `cf set-env` ändern:
 | `VALUE_HELP_TEXT_FIELD` | `BusinessPartnerFullName` |
 | `VALUE_HELP_ODATA_VERSION` | `2` |
 
+So wird die Beispiel-API ausdrücklich konfiguriert (Werte für den Kunden ersetzen):
+
+```bash
+cf set-env tp-wizard-cap VALUE_HELP_SERVICE_PATH /sap/opu/odata/sap/API_BUSINESS_PARTNER
+cf set-env tp-wizard-cap VALUE_HELP_ENTITY_SET A_BusinessPartner
+cf set-env tp-wizard-cap VALUE_HELP_KEY_FIELD BusinessPartner
+cf set-env tp-wizard-cap VALUE_HELP_TEXT_FIELD BusinessPartnerFullName
+cf set-env tp-wizard-cap VALUE_HELP_ODATA_VERSION 2
+cf restart tp-wizard-cap
+```
+
+Die Zuordnung aus dem OData-Service des Kunden ableiten:
+
+1. Service-Pfad festlegen; `$metadata` beschreibt EntitySets und Eigenschaften.
+2. EntitySet mit den auswählbaren Einträgen als `VALUE_HELP_ENTITY_SET` setzen.
+3. Code-Eigenschaft als `VALUE_HELP_KEY_FIELD`, Bezeichnung als
+   `VALUE_HELP_TEXT_FIELD` setzen. Groß-/Kleinschreibung exakt übernehmen.
+4. Protokollversion `2` oder `4` setzen und CAP neu starten.
+5. Über Approuter die Felderfassung öffnen und „Auswählen“ testen.
+
+Beispiel-Ergebnis: `<Destination-URL>/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner`.
+`cf set-env` benötigt keinen lokalen Projektordner, aber das richtige CF-Ziel.
+Ein Neustart genügt; kein Build erforderlich. Er verliert jedoch die PoC-Daten im
+Speicher. Das Redeployment-Skript erhält bestehende API-Werte. Bei manuellem
+`cf push` die Beispielwerte im Manifest ebenfalls anpassen, damit sie kundenspezifische
+Einstellungen nicht überschreiben.
+
 Business Partner sind keine DS100-Betriebsstellen; für Kundendaten Zuordnung anpassen.
 Host, Passwort und Location ID bleiben in BTP. Service-Pfad nicht doppelt hinterlegen.
 
